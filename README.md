@@ -181,10 +181,10 @@ traditional classes, and dataclasses.
 
 ### Dicts
 This is better than using a dict for your hyperparameters.
-  1) Parameter values can be type checked in your training code (i.e.: you can be sure your parameter object has all the
-     needed parameter values
-  2) It's easy to rename hyperparameters by refactoring in your IDE
-     (this fails with dicts that map parameter names to values)
+1)  Parameter values can be type checked in your training code (i.e.: you can be sure your parameter object has all the
+    needed parameter values
+2)  It's easy to rename hyperparameters by refactoring in your IDE
+    (this fails with dicts that map parameter names to values)
 
 ### Traditional Classes
 It's also better than defining a custom Hyperparameter class.
@@ -215,11 +215,11 @@ change it in three places.
 ### Dataclasses
 Finally, Python 3.7's `dataclass`es provide perhaps the most similar analog to our `ParameterSet`s, but they pose two
 problems which hold them back.
-    1) They require Python 3.7.
-    2) They require type annotations along with default values.  While requiring type annotations is usually a good
+1) They require Python 3.7.
+2) They require type annotations along with default values.  While requiring type annotations is usually a good
        thing in Python, they're often redundant for `ParameterSet`s on which the types can be easily inferred from
        default values.  This makes for unnecessary extra typing.
-    3) They pose problems for subclassing.  For example:
+3) They pose problems for subclassing.  For example:
 ```python
 from dataclasses import dataclass
 from typing import Any
@@ -227,7 +227,6 @@ from typing import Any
 @dataclass
 class Parent:
     pass
-
 
 class Child(Parent):
     name: Any = 'asdf'
@@ -240,12 +239,10 @@ print(c)
 Yields the following error: `TypeError: __init__() got an unexpected keyword argument 'name'`.  A (hyper)ParameterSet
 superclass should be able to be subclassed so that useful methods can be implemented in parents.
 
-
 Summary
 -------
 Overall, `PameterSet`s offer (Hyper)Parameter objects which are powerful but still as simple to use as it is 
 possible to be in python.
-
 
 Authors
 -------
