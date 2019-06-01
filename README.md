@@ -203,13 +203,7 @@ problems which hold them back.
     2) They require type annotations along with default values.  While requiring type annotations is usually a good
        thing in Python, they're often redundant for `ParameterSet`s on which the types can be easily inferred from
        default values.  This makes for unnecessary extra typing.
-    3) They pose problems for subclassing<sup>[1](#myfootnote1)</sup>.
-
-
-Overall, `PameterSet` let's your define and refactor your parameter classes with the minimum required amount of work.
-
-    
-<a name="myfootnote1">Footnote 1</a>: A simple dataclass subclassing problem:
+    3) They pose problems for subclassing.  For example:
 ```python
 from dataclasses import dataclass
 from typing import Any
@@ -231,6 +225,10 @@ Yields the following error: `TypeError: __init__() got an unexpected keyword arg
 superclass should be able to be subclassed so that useful methods can be implemented in parents.
 
 
+Summary
+-------
+Overall, `PameterSet`s offer (Hyper)Parameter objects which are powerful but still as simple to use as it is 
+possible to be in python.
 
 
 Authors
