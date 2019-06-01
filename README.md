@@ -16,6 +16,8 @@ The main class you should interact with in `ritalin` is `params.ParameterSet` wh
 
 You should implement your hyperparameters as a subclass of `ParameterSet`.
 
+
+
 Alternatives
 ------------
 ```python
@@ -64,26 +66,27 @@ change it in three places.
 
 Finally, Python 3.7's `dataclass`es provide perhaps the most similar analog to our `ParameterSet`s, but they pose two
 problems which hold them back.
-    1) They require type annotations along with default values.  While requiring type annotations is usually a good
+    1) They require Python 3.7.
+    2) They require type annotations along with default values.  While requiring type annotations is usually a good
        thing in Python, they're often redundant for `ParameterSet`s on which the types can be easily inferred from
-       default values.
-    2) They pose problems for subclassing<sup>[1](#myfootnote1)</sup>.
+       default values.  This makes for unnecessary extra typing.
+    3) They pose problems for subclassing<sup>[1](#myfootnote1)</sup>.
 
 
-Overall, `PameterSet` let's your define your parameter classes with the minimum required amount of typing.
+Overall, `PameterSet` let's your define and refactor your parameter classes with the minimum required amount of.
 
     
-<a name="myfootnote1">1</a>: For example:
+<a name="myfootnote1">Footnote 1</a>: A simple dataclass subclassing problem:
 ```python
 from dataclasses import dataclass
 from typing import Any
 
 @dataclass
-class WithoutExplicitTypes:
+class Parent:
     pass
 
 
-class Child(WithoutExplicitTypes):
+class Child(Parent):
     name: Any = 'asdf'
     value: Any = 42
 
