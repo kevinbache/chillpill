@@ -67,30 +67,33 @@ problems which hold them back.
     1) They require type annotations along with default values.  While requiring type annotations is usually a good
        thing in Python, they're often redundant for `ParameterSet`s on which the types can be easily inferred from
        default values.
-    2) They pose problems for subclassing[^bignote].
+    2) They pose problems for subclassing<sup>[1](#myfootnote1)</sup>.
 
-[^bignote]: For example:
-    ```python
-    from dataclasses import dataclass
-    from typing import Any
-
-    @dataclass
-    class WithoutExplicitTypes:
-        pass
-
-
-    class Child(WithoutExplicitTypes):
-        name: Any = 'asdf'
-        value: Any = 42
-
-    c = Child(name='ffffff', value=1234)
-    print(c)
-    ```
-
-    Yields the following error: `TypeError: __init__() got an unexpected keyword argument 'name'`.  A (hyper)ParameterSet
-    superclass should be able to be subclassed so that useful methods can be implemented in parents.
 
 Overall, `PameterSet` let's your define your parameter classes with the minimum required amount of typing.
+
+    
+<a name="myfootnote1">1</a>: For example:
+```python
+from dataclasses import dataclass
+from typing import Any
+
+@dataclass
+class WithoutExplicitTypes:
+    pass
+
+
+class Child(WithoutExplicitTypes):
+    name: Any = 'asdf'
+    value: Any = 42
+
+c = Child(name='ffffff', value=1234)
+print(c)
+```
+
+Yields the following error: `TypeError: __init__() got an unexpected keyword argument 'name'`.  A (hyper)ParameterSet
+superclass should be able to be subclassed so that useful methods can be implemented in parents.
+
 
 
 
