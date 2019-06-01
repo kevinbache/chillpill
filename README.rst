@@ -18,6 +18,7 @@ You should implement your hyperparameters as a subclass of `ParameterSet`.
 
 Alternatives
 ------------
+
 ```python
 import numpy as np
 from ritalin import params
