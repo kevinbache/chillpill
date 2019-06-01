@@ -1,7 +1,7 @@
 ritalin
 =======
-`ritalin` offers a powerful implementation of (Hyper)`ParameterSet`s which requires the minimal possible 
-amount of work   
+`ritalin` offers a surprisingly powerful implementation of (Hyper)`ParameterSet`s which requires the minimal 
+possible amount of work.
 
 Installation
 ------------
@@ -55,11 +55,11 @@ can refactor a parameter name (e.g. `filter_size` above) one time in your IDE an
 touch it in your code.
 
 These parameter ranges can be sampled:
-
 ```python
 hps = my_param_ranges.sample()
 print(hp)
 ```
+
 Which yields a fully instantiated version of your hyperparameters.
 `ModelHyperParams(activation: relu, dropout_rate: 0.6031449000058329, filter_size: 3, num_hidden_layers: 2, num_neurons_per_layer: 32, output_dir: /tmp/output)`
 
@@ -92,6 +92,11 @@ tuning.run_tuning(tuner, train_fn)
 best_acc, best_params = tuner.get_best(do_max=True)
 ```
 
+See `ritalin/examples/local_hp_tuning.py` for a complete example of local hyperparameter tuning for Keras models.
+
+`ParameterSet`s can also be used in conjunction with `search.HyperparamSearchSpec` to conduct full hyperparameter 
+searches using Google's Cloud Machine Learning Engine.  For example: 
+
 ```python
 from ritalin import search
 
@@ -114,7 +119,8 @@ my_param_ranges = ModelHyperParams(
 spec.add_parameters(my_param_ranges)
 spec.to_training_input_yaml('hps.yaml')
 ```
-Which creates `hps.yaml`, a file like this:
+
+This creates `hps.yaml`, a file like this:
 ```yaml
 trainingInput:
   hyperparameters:
