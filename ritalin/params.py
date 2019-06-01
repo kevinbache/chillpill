@@ -109,7 +109,9 @@ class ParameterSet(HasClassDefaults):
     # 3) Creating a HyperparamSearchSpec for distributed training: #
     ################################################################
     ```
-    search = HyperparamSearchSpec(
+    from ritalin import search
+
+    spec = search.HyperparamSearchSpec(
         max_trials=10,
         max_parallel_trials=5,
         max_failed_trials=2,
@@ -125,8 +127,8 @@ class ParameterSet(HasClassDefaults):
         output_dir = '/tmp/output',
     )
 
-    search.add_parameters(my_param_ranges)
-    search.to_training_input_yaml('hps.yaml')
+    spec.add_parameters(my_param_ranges)
+    spec.to_training_input_yaml('hps.yaml')
     ```
     --> a file like this:
     ```

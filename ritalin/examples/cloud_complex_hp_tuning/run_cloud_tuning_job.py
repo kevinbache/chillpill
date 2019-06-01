@@ -5,12 +5,12 @@ from pathlib import Path
 import numpy as np
 
 from ritalin import params
-from ritalin import hpspec
+from ritalin import search
 from ritalin.examples.cloud_complex_hp_tuning import train
 
 if __name__ == '__main__':
     # Create a Cloud AI Platform Hyperparameter Search object
-    search = hpspec.HyperparamSearchSpec(
+    search = search.HyperparamSearchSpec(
         max_trials=10,
         max_parallel_trials=5,
         max_failed_trials=2,

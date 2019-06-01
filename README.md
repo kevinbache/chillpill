@@ -6,22 +6,21 @@ Installation
 ------------
 `$ pip install --editable .` from within this directory.
 
+
+Examples
+--------
+For complete examples of
+  1. Local hyperparameter tuning, see `ritalin/examples/local_hp_tuning.py`
+  2. Distributed hyperparameter tuning using Google Cloud Machine Learning Engine, set the variables 
+     required in `ritalin/examples/cloud_complex_hp_tuning/build_and_submit.sh` and then run
+     `ritalin/examples/cloud_complex_hp_tuning/run_tuning_job.py`.
+
+
 Usage
 -----
-Examples:
-  1. Running `ritalin/examples/local_hp_tuning.py`
-  2. Setting the env variables required in `ritalin/examples/cloud_complex_hp_tuning/build_and_submit.sh` and then running `ritalin/examples/cloud_complex_hp_tuning/run_tuning_job.py`
-
-The main class you should interact with in `ritalin` is `params.ParameterSet` which represents a set of (hyper)parameters.
-
-You should implement your hyperparameters as a subclass of `ParameterSet`.
-
-
-
-Alternatives
-------------
+Define your (hyper)ParameterSet classes by inheriting from `params.ParameterSet` and defining default values as 
+class members.
 ```python
-import numpy as np
 from ritalin import params
 
 class ModelHyperParams(params.ParameterSet):
@@ -33,12 +32,145 @@ class ModelHyperParams(params.ParameterSet):
     output_dir = '/tmp/output'
 ```
 
+The `params.ParameterSet`'s `__init__` method will copy these class members into any instantiated subclasses so they
+won't be shared between instantiated objects.   
+
+`ParameterSet`s can also be instantiated with parameter ranges for conducting (hyper)parameter searches.
+
+For example, continuing the code from above:
+
+```python
+my_param_ranges = ModelHyperParams(
+    filter_size=params.DiscreteParameter([3, 5, 7]),
+    num_hidden_layers=params.IntegerParameter(min_value=1, max_value=3),
+    num_neurons_per_layer=params.DiscreteParameter(np.logspace(2, 8, num=7, base=2)),
+    dropout_rate=params.DoubleParameter(min_value=-0.1, max_value=0.9),
+    activation = 'relu',
+)
+```  
+
+Reusing the same class for defining (hyper)Parameter search ranges and default definitions means that you
+can refactor a parameter name (e.g. `filter_size` above) one time in your IDE and it changes everywhere you 
+touch it in your code.
+
+For local tuning of Keras models, check out the `KerasHistoryRandomTuner`.  For example:
+```python    
+from ritalin import params, tuning
+
+def train_fn(params: ModelHyperParams):
+    ...
+
+# instantiate the same param class you defined above, overriding some parameters with search ranges
+# the fact that the class is shared
+my_param_ranges = ModelHyperParams(
+    filter_size=params.DiscreteParameter([3, 5, 7]),
+    num_hidden_layers=params.IntegerParameter(min_value=1, max_value=3),
+    num_neurons_per_layer=params.DiscreteParameter(np.logspace(2, 8, num=7, base=2)),
+    dropout_rate=params.DoubleParameter(min_value=-0.1, max_value=0.9),
+    activation = 'relu',
+    output_dir = '/tmp/output',
+)
+
+tuner = tuning.KerasHistoryRandomTuner(
+    param_ranges=my_param_ranges,
+    num_parameter_sets=10,
+    metric_name_of_interest='val_acc'
+)
+
+tuning.run_tuning(tuner, train_fn)
+
+best_acc, best_params = tuner.get_best(do_max=True)
+```
+
+```python
+from ritalin import search
+
+spec = search.HyperparamSearchSpec(
+    max_trials=10,
+    max_parallel_trials=5,
+    max_failed_trials=2,
+    hyperparameter_metric_tag='val_acc',
+)
+
+my_param_ranges = ModelHyperParams(
+    filter_size=params.DiscreteParameter([3, 5, 7]),
+    num_hidden_layers=params.IntegerParameter(min_value=1, max_value=3),
+    num_neurons_per_layer=params.DiscreteParameter(np.logspace(2, 8, num=7, base=2)),
+    dropout_rate=params.DoubleParameter(min_value=-0.1, max_value=0.9),
+    activation = 'relu',
+    output_dir = '/tmp/output',
+)
+
+spec.add_parameters(my_param_ranges)
+spec.to_training_input_yaml('hps.yaml')
+```
+Which creates `hps.yaml`, a file like this:
+```yaml
+trainingInput:
+  hyperparameters:
+    algorithm: ALGORITHM_UNSPECIFIED
+    enableTrialEarlyStopping: true
+    goal: MAXIMIZE
+    hyperparameterMetricTag: val_acc
+    maxFailedTrials: 2
+    maxParallelTrials: 5
+    maxTrials: 10
+    params:
+    - {maxValue: 0.9, minValue: -0.1, parameterName: dropout_rate, type: DOUBLE}
+    - discreteValues: [3, 5, 7]
+      parameterName: filter_size
+      type: DISCRETE
+    - {maxValue: 3, minValue: 1, parameterName: num_hidden_layers, type: INTEGER}
+    - discreteValues: [4, 8, 16, 32, 64, 128, 256]
+      parameterName: num_neurons_per_layer
+      type: DISCRETE
+    resumePreviousJobId: null
+```
+which can be used for 
+[distributed hyperparameter tuning](https://cloud.google.com/blog/products/gcp/hyperparameter-tuning-cloud-machine-learning-engine-using-bayesian-optimization) 
+using Google Cloud Machine Learning Engine.  See `ritalin/examples/cloud_complex_hp_tuning/run_tuning_job.py` 
+for a complete example.  
+
+Finally, you can rebuild this (Hyper)`ParameterSet` object on the cluster using `ritalin/simple_argparse.py` module and 
+`ParameterSet.from_dict()`.  For example, in a python script invoked with the arguments:
+```bash
+python train.py \
+    --num_hidden_layers=3 \
+    --num_neurons_per_layer=2 \
+    --dropout_rate=0.2 \
+    --learning_rate=0.4 \
+    --activation=relu
+```
+You could instantiate the (Hyper)`ParameterSet` class you defined above like so:
+
+```
+from ritalin import params
+from ritalin import simple_argparse
+params = ModelHyperParams.from_dict(simple_argparse.args_2_dict())
+
+def build_model(params: ModelHyperParams):
+    pass
+
+model = build_model(params)
+...
+```
+
+That's the basic idea of Ritalin.  One (Hyper)`ParameterSet` class which does everything you need with a minimal amount 
+of typing and refactoring headaches.
+
+Alternatives
+------------
+`ParameterSet` (Hyper)Parameter classes are the best: better than dict-based hyperparameter sets, 
+traditional classes, and dataclasses.
+
+### Dicts
 This is better than using a dict for your hyperparameters.
   1) Parameter values can be type checked in your training code (i.e.: you can be sure your parameter object has all the
      needed parameter values
   2) It's easy to rename hyperparameters by refactoring in your IDE
      (this fails with dicts that map parameter names to values)
 
+### Traditional Classes
 It's also better than defining a custom Hyperparameter class.
 Take this for example:
 
@@ -64,6 +196,7 @@ class ModelHyperParams:
 This is fine but you had to write out every parameter name three times and if you want to change one you've got to
 change it in three places.
 
+### Dataclasses
 Finally, Python 3.7's `dataclass`es provide perhaps the most similar analog to our `ParameterSet`s, but they pose two
 problems which hold them back.
     1) They require Python 3.7.
@@ -73,7 +206,7 @@ problems which hold them back.
     3) They pose problems for subclassing<sup>[1](#myfootnote1)</sup>.
 
 
-Overall, `PameterSet` let's your define and refactor your parameter classes with the minimum required amount of.
+Overall, `PameterSet` let's your define and refactor your parameter classes with the minimum required amount of work.
 
     
 <a name="myfootnote1">Footnote 1</a>: A simple dataclass subclassing problem:
