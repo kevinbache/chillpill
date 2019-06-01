@@ -11,7 +11,16 @@ class HasClassDefaults(abc.ABC):
 
     HasClassDefault._get_member_names is like object.__dict__.keys() except it includes class members.
     """
-    names_to_ignore = ['_abc_impl', 'names_to_ignore', '_class_member_order', '_index']
+    names_to_ignore = [
+        '_abc_impl',
+        '_abc_cache',
+        '_abc_negative_cache',
+        '_abc_negative_cache_version',
+        '_abc_registry',
+        'names_to_ignore',
+        '_class_member_order',
+        '_index'
+    ]
 
     def _is_method(self, attribute_name):
         return isinstance(self.__getattribute__(attribute_name), (

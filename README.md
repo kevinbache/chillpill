@@ -1,6 +1,7 @@
 ritalin
 =======
-`ritalin` treats your hyperparameters with grace and aplomb.
+`ritalin` offers a powerful implementation of (Hyper)`ParameterSet`s which requires the minimal possible 
+amount of work   
 
 Installation
 ------------
@@ -47,11 +48,20 @@ my_param_ranges = ModelHyperParams(
     dropout_rate=params.DoubleParameter(min_value=-0.1, max_value=0.9),
     activation = 'relu',
 )
-```  
+```
 
 Reusing the same class for defining (hyper)Parameter search ranges and default definitions means that you
 can refactor a parameter name (e.g. `filter_size` above) one time in your IDE and it changes everywhere you 
 touch it in your code.
+
+These parameter ranges can be sampled:
+
+```python
+hps = my_param_ranges.sample()
+print(hp)
+```
+Which yields a fully instantiated version of your hyperparameters.
+`ModelHyperParams(activation: relu, dropout_rate: 0.6031449000058329, filter_size: 3, num_hidden_layers: 2, num_neurons_per_layer: 32, output_dir: /tmp/output)`
 
 For local tuning of Keras models, check out the `KerasHistoryRandomTuner`.  For example:
 ```python    
