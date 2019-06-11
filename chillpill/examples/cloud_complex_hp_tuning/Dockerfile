@@ -24,4 +24,4 @@ COPY  . .
 RUN pip install --editable .
 
 # Set up the entry point to invoke the trainer.
-ENTRYPOINT ["python", "ritalin/examples/cloud_complex_hp_tuning/train.py"]
+ENTRYPOINT ["python", "chillpill/examples/cloud_complex_hp_tuning/train.py"]

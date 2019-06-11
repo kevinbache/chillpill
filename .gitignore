@@ -37,4 +37,4 @@ nosetests.xml
 .idea
 .ipynb_checkpoints
 **/.ipynb_checkpoints
-ritalin/examples/cloud_complex_hp_tuning/hps.yaml
+chillpill/examples/cloud_complex_hp_tuning/hps.yaml

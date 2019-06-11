@@ -1,6 +1,6 @@
 """This is the main training module which is run by the Cloud AI Platform jobs that are launched from
 `run_cloud_tuning_job.py`"""
-from ritalin import params, callbacks
+from chillpill import params, callbacks
 
 
 class MyParams(params.ParameterSet):
@@ -64,8 +64,8 @@ def train_fn(hp: MyParams):
 
 
 if __name__ == '__main__':
-    from ritalin import simple_argparse
-    from ritalin import params
+    from chillpill import simple_argparse
+    from chillpill import params
 
     # get a parameter dictionary
     hp = MyParams.from_dict(simple_argparse.args_2_dict())

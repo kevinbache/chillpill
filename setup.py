@@ -14,16 +14,16 @@ def read(filename):
 
 
 setup(
-    name="ritalin",
+    name="chillpill",
     version="0.0.1",
-    url="git@github.com/kevinbache/ritalin",
+    url="git@github.com/kevinbache/chillpill",
     license='MIT',
 
     author="Kevin Bache",
     author_email="kevin.bache@gmail.com",
 
-    description="Ritalin treats your hyperparameters with grace and aplomb.",
-    long_description=read("README.rst"),
+    description="chillpill calms your hyperparameters.",
+    long_description=read("README.md"),
 
     packages=find_packages(exclude=('tests',)),
 

@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 from tensorflow import keras
 
-from ritalin import params
+from chillpill import params
 
 
 class TunerInterface(abc.ABC):
@@ -12,7 +12,7 @@ class TunerInterface(abc.ABC):
 
     Used like this:
 
-    from ritalin import params
+    from chillpill import params
 
     class MyParams(params.ParameterSet):
         num_layers=4

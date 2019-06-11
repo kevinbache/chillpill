@@ -1,6 +1,6 @@
 import numpy as np
 
-from ritalin import params, tuning
+from chillpill import params, tuning
 
 
 class MyParams(params.ParameterSet):

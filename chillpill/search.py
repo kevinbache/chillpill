@@ -8,7 +8,7 @@ import yaml
 
 import numpy as np
 
-from ritalin import params
+from chillpill import params
 
 
 def snake_2_camel(name):

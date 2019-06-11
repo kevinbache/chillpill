@@ -1,6 +1,6 @@
-ritalin
+chillpill
 =======
-`ritalin` offers a surprisingly powerful implementation of (Hyper)`ParameterSet`s which requires the minimal 
+`chillpill` offers a surprisingly powerful implementation of (Hyper)`ParameterSet`s which requires the minimal 
 possible amount of work.
 
 Installation
@@ -11,10 +11,10 @@ Installation
 Examples
 --------
 For complete examples of
-  1. Local hyperparameter tuning, see `ritalin/examples/local_hp_tuning.py`
+  1. Local hyperparameter tuning, see `chillpill/examples/local_hp_tuning.py`
   2. Distributed hyperparameter tuning using Google Cloud Machine Learning Engine, set the variables 
-     required in `ritalin/examples/cloud_complex_hp_tuning/build_and_submit.sh` and then run
-     `ritalin/examples/cloud_complex_hp_tuning/run_tuning_job.py`.
+     required in `chillpill/examples/cloud_complex_hp_tuning/build_and_submit.sh` and then run
+     `chillpill/examples/cloud_complex_hp_tuning/run_tuning_job.py`.
 
 
 Usage
@@ -22,7 +22,7 @@ Usage
 Define your (hyper)ParameterSet classes by inheriting from `params.ParameterSet` and defining default values as 
 class members.
 ```python
-from ritalin import params
+from chillpill import params
 
 class ModelHyperParams(params.ParameterSet):
     filter_size = 3
@@ -65,7 +65,7 @@ Which yields a fully instantiated version of your hyperparameters.
 
 For local tuning of Keras models, check out the `KerasHistoryRandomTuner`.  For example:
 ```python    
-from ritalin import params, tuning
+from chillpill import params, tuning
 
 def train_fn(params: ModelHyperParams):
     ...
@@ -92,13 +92,13 @@ tuning.run_tuning(tuner, train_fn)
 best_acc, best_params = tuner.get_best(do_max=True)
 ```
 
-See `ritalin/examples/local_hp_tuning.py` for a complete example of local hyperparameter tuning for Keras models.
+See `chillpill/examples/local_hp_tuning.py` for a complete example of local hyperparameter tuning for Keras models.
 
 `ParameterSet`s can also be used in conjunction with `search.HyperparamSearchSpec` to conduct full hyperparameter 
 searches using Google's Cloud Machine Learning Engine.  For example: 
 
 ```python
-from ritalin import search
+from chillpill import search
 
 spec = search.HyperparamSearchSpec(
     max_trials=10,
@@ -144,10 +144,10 @@ trainingInput:
 ```
 which can be used for 
 [distributed hyperparameter tuning](https://cloud.google.com/blog/products/gcp/hyperparameter-tuning-cloud-machine-learning-engine-using-bayesian-optimization) 
-using Google Cloud Machine Learning Engine.  See `ritalin/examples/cloud_complex_hp_tuning/run_tuning_job.py` 
+using Google Cloud Machine Learning Engine.  See `chillpill/examples/cloud_complex_hp_tuning/run_tuning_job.py` 
 for a complete example.  
 
-Finally, you can rebuild this (Hyper)`ParameterSet` object on the cluster using `ritalin/simple_argparse.py` module and 
+Finally, you can rebuild this (Hyper)`ParameterSet` object on the cluster using `chillpill/simple_argparse.py` module and 
 `ParameterSet.from_dict()`.  For example, in a python script invoked with the arguments:
 ```bash
 python train.py \
@@ -160,8 +160,8 @@ python train.py \
 You could instantiate the (Hyper)`ParameterSet` class you defined above like so:
 
 ```
-from ritalin import params
-from ritalin import simple_argparse
+from chillpill import params
+from chillpill import simple_argparse
 params = ModelHyperParams.from_dict(simple_argparse.args_2_dict())
 
 def build_model(params: ModelHyperParams):
@@ -171,7 +171,7 @@ model = build_model(params)
 ...
 ```
 
-That's the basic idea of Ritalin.  One (Hyper)`ParameterSet` class which does everything you need with a minimal amount 
+That's the basic idea of chillpill.  One (Hyper)`ParameterSet` class which does everything you need with a minimal amount 
 of typing and refactoring headaches.
 
 Alternatives
@@ -246,4 +246,4 @@ possible to be in python.
 
 Authors
 -------
-`ritalin` was written by Kevin Bache.
+`chillpill` was written by Kevin Bache.

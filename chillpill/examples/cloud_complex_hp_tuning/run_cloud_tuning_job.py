@@ -4,9 +4,9 @@ from pathlib import Path
 
 import numpy as np
 
-from ritalin import params
-from ritalin import search
-from ritalin.examples.cloud_complex_hp_tuning import train
+from chillpill import params
+from chillpill import search
+from chillpill.examples.cloud_complex_hp_tuning import train
 
 if __name__ == '__main__':
     # Create a Cloud AI Platform Hyperparameter Search object

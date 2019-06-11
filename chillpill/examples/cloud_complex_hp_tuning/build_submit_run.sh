@@ -11,7 +11,7 @@
 export PROJECT_ID="${PROJECT_ID:-kb-experiment}"
 export BUCKET_NAME="${BUCKET_NAME:-kb-dummy-bucket}"
 
-export IMAGE_REPO_NAME="ritalin"
+export IMAGE_REPO_NAME="chillpill"
 export IMAGE_TAG="cloud_hp_tuning_example"
 export IMAGE_URI=gcr.io/${PROJECT_ID}/${IMAGE_REPO_NAME}:${IMAGE_TAG}
 export REGION=us-central1
@@ -21,11 +21,11 @@ echo "IMAGE URI:" $IMAGE_URI
 ###############################
 # build and push docker image #
 ###############################
-# set working direcotry to ritalin root so that docker context includes the whole package
+# set working direcotry to chillpill root so that docker context includes the whole package
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd ${THIS_DIR}/../../..
 
-EXAMPLES_DIR=ritalin/examples/cloud_complex_hp_tuning
+EXAMPLES_DIR=chillpill/examples/cloud_complex_hp_tuning
 
 if [ "$(uname)" == "Darwin" ]; then
     # Standard mac
@@ -40,7 +40,7 @@ fi
 ################################
 # run ai platform training job #
 ################################
-gcloud beta ai-platform jobs submit training ritalin_hp_tuning_example_$(date +%Y%m%d_%H%M%S) \
+gcloud beta ai-platform jobs submit training chillpill_hp_tuning_example_$(date +%Y%m%d_%H%M%S) \
     --region $REGION  \
     --config ${EXAMPLES_DIR}/hps.yaml \
     --master-image-uri $IMAGE_URI   \

@@ -72,7 +72,7 @@ class ParameterSet(HasClassDefaults):
     ##########################
     ```
     import numpy as np
-    from ritalin import params
+    from chillpill import params
 
     class ModelHyperParams(params.ParameterSet):
         filter_size = 3
@@ -87,7 +87,7 @@ class ParameterSet(HasClassDefaults):
     # 2) For local tuning: #
     ########################
     ```
-    from ritalin import params, tuning
+    from chillpill import params, tuning
 
     def train_fn(params: ModelHyperParams):
         ...
@@ -118,7 +118,7 @@ class ParameterSet(HasClassDefaults):
     # 3) Creating a HyperparamSearchSpec for distributed training: #
     ################################################################
     ```
-    from ritalin import search
+    from chillpill import search
 
     spec = search.HyperparamSearchSpec(
         max_trials=10,
@@ -173,8 +173,8 @@ class ParameterSet(HasClassDefaults):
         --learning_rate=0.4
         --activation=relu
     ```
-    from ritalin import params
-    from ritalin import simple_argparse
+    from chillpill import params
+    from chillpill import simple_argparse
     params = ModelHyperParams.from_dict(simple_argparse.args_2_dict())
     assert(
       str(params) ==  \
@@ -276,7 +276,7 @@ if __name__ == '__main__':
     sample = ModelHyperParams().sample()
     print(sample)
 
-    from ritalin import simple_argparse
+    from chillpill import simple_argparse
     args = [
         '--num_hidden_layers=3',
         '--num_neurons_per_layer=2',
