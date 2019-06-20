@@ -167,7 +167,23 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         project_id = f'projects/{project_name}'
         request = cloudml.projects().jobs().create(body=job_spec, parent=project_id)
 
-        return request.execute()
+        response = request.execute()
+
+        msg = f'''
+        Job [{job_name}] submitted successfully.
+        Your job is still active. You may view the status of your job with the command
+
+          $ gcloud ai-platform jobs describe {job_name}
+
+        or continue streaming the logs with the command
+
+          $ gcloud ai-platform jobs stream-logs {job_name}
+        jobId: {job_name}
+        state: QUEUED
+        '''
+        print(msg)
+
+        return response
 
 
 class SearchType(enum.Enum):
@@ -347,10 +363,10 @@ if __name__ == '__main__':
 
     search.add_parameters(ModelHyperParams())
     print(search.to_training_input_dict())
-    search.to_training_input_yaml('hps.yaml')
-    # search.run_job(
-    #     f'my_job_{str(int(time.time()))}',
-    #     'kb-experiment',
-    #     container_image_uri='gcr.io/kb-experiment/chillpill:cloud_hp_tuning_example',
-    #     args={'bucket_id': 'kb-experiment'}
-    # )
+    # search.to_training_input_yaml('hps.yaml')
+    search.run_job(
+        f'my_job_{str(int(time.time()))}',
+        'kb-experiment',
+        container_image_uri='gcr.io/kb-experiment/chillpill:cloud_hp_tuning_example',
+        args={'bucket_id': 'kb-experiment'}
+    )
