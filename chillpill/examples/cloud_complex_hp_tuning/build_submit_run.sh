@@ -25,24 +25,24 @@ echo "IMAGE URI:" $IMAGE_URI
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd ${THIS_DIR}/../../..
 
-EXAMPLES_DIR=chillpill/examples/cloud_complex_hp_tuning
+THIS_EXAMPLE_DIR=chillpill/examples/cloud_complex_hp_tuning
 
-if [ "$(uname)" == "Darwin" ]; then
-    # Standard mac
-    docker build -f ${EXAMPLES_DIR}/Dockerfile -t $IMAGE_URI .
-    docker push $IMAGE_URI
-elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-    # Goobuntu needs sudo docker calls
-    sudo docker build -f ${EXAMPLES_DIR}/Dockerfile -t $IMAGE_URI .
-    sudo docker push $IMAGE_URI
-fi
+#if [ "$(uname)" == "Darwin" ]; then
+#    # Standard mac
+#    docker build -f ${THIS_EXAMPLE_DIR}/Dockerfile -t $IMAGE_URI .
+#    docker push $IMAGE_URI
+#elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+#    # Goobuntu needs sudo docker calls
+#    sudo docker build -f ${THIS_EXAMPLE_DIR}/Dockerfile -t $IMAGE_URI .
+#    sudo docker push $IMAGE_URI
+#fi
 
 ################################
 # run ai platform training job #
 ################################
 gcloud beta ai-platform jobs submit training chillpill_hp_tuning_example_$(date +%Y%m%d_%H%M%S) \
     --region $REGION  \
-    --config ${EXAMPLES_DIR}/hps.yaml \
+    --config ${THIS_EXAMPLE_DIR}/hps.yaml \
     --master-image-uri $IMAGE_URI   \
     --scale-tier BASIC   \
     -- \

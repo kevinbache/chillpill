@@ -3,6 +3,7 @@ See https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs#hyperpara
 """
 import abc
 import enum
+import time
 from typing import Text, Optional, Union, List, Dict, Callable, Any
 import yaml
 
@@ -118,7 +119,7 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         elif isinstance(obj, dict):
             return {k: cls._to_dict_inner(v) for k, v in obj.items()}
         elif isinstance(obj, SpecParameter):
-            return obj.to_yaml_dict()
+            return obj.to_dict()
         elif isinstance(obj, enum.Enum):
             return obj.name
         else:
@@ -129,16 +130,44 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         return d
 
     def to_training_input_yaml(self, filename=None) -> Text:
-        s = yaml.dump({
-            'trainingInput': {
-                'hyperparameters': convert_keys_to_camel(self._to_dict()),
-            }
-        })
+        s = yaml.dump(self.to_training_input_dict())
         if filename is not None:
             with open(filename, 'w') as f:
                 f.write(s)
 
         return s
+
+    def to_training_input_dict(self) -> Dict:
+        return {
+            'trainingInput': {
+                'hyperparameters': convert_keys_to_camel(self._to_dict()),
+            }
+        }
+
+    def run_job(
+            self,
+            job_name: Text,
+            project_name: Text,
+            container_image_uri: Text,
+            args: Optional[Dict]=None,
+            region: Text='us-central1',
+    ):
+        # https://cloud.google.com/ml-engine/docs/tensorflow/training-jobs
+        # https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs#TrainingInput
+        from googleapiclient import discovery
+        cloudml = discovery.build('ml', 'v1')
+
+        job_spec = self.to_training_input_dict()
+        job_spec['job_id'] = job_name
+        job_spec['trainingInput']['region'] = region
+        job_spec['trainingInput']['masterConfig'] = {'imageUri': container_image_uri}
+        if args:
+            job_spec['trainingInput']['args'] = [f'--{k}={v}' for k, v in args.items()]
+
+        project_id = f'projects/{project_name}'
+        request = cloudml.projects().jobs().create(body=job_spec, parent=project_id)
+
+        return request.execute()
 
 
 class SearchType(enum.Enum):
@@ -166,7 +195,7 @@ class SpecParameter(params.HasClassDefaults):
         self.type = type
         self.scale_type = scale_type
 
-    def to_yaml_dict(self):
+    def to_dict(self):
         # TODO: _get_member_names can probably be __dict__
         d = {k: self.__getattribute__(k) for k in self._get_member_names()}
         if d['scale_type'] == ScaleType.NONE:
@@ -198,7 +227,7 @@ class DoubleSpecParameter(SpecParameter):
         return np.random.uniform(self.min_value, self.max_value)
 
     @classmethod
-    def from_hyperparameter(cls, name: Text, parameter: params.DoubleParameter):
+    def from_hyperparameter(cls, name: Text, parameter: params.Double):
         return cls(
             parameter_name=name,
             min_value=parameter.min_value,
@@ -224,7 +253,7 @@ class IntegerSpecParameter(SpecParameter):
         return np.random.randint(self.min_value, self.max_value)
 
     @classmethod
-    def from_hyperparameter(cls, name: Text, parameter: params.IntegerParameter):
+    def from_hyperparameter(cls, name: Text, parameter: params.Integer):
         return cls(
             parameter_name=name,
             min_value=parameter.min_value,
@@ -259,7 +288,7 @@ class DiscreteSpecParameter(SpecParameter):
         return np.random.choice(self.discrete_values)
 
     @classmethod
-    def from_hyperparameter(cls, name: Text, parameter: params.DiscreteParameter):
+    def from_hyperparameter(cls, name: Text, parameter: params.Discrete):
         return cls(
             parameter_name=name,
             discrete_values=list([_numpy_scalar_to_python_scalar(e) for e in parameter.possible_values]),
@@ -279,7 +308,7 @@ class CategoricalSpecParameter(SpecParameter):
         return np.random.choice(self.categorical_values)
 
     @classmethod
-    def from_hyperparameter(cls, name: Text, parameter: params.CategoricalParameter):
+    def from_hyperparameter(cls, name: Text, parameter: params.Categorical):
         return cls(
             parameter_name=name,
             categorical_values=parameter.possible_values,
@@ -289,10 +318,10 @@ class CategoricalSpecParameter(SpecParameter):
 class SpecParameterFactory:
     """Translates hp.SamplableParameters into SpecParameters"""
     hp_to_spec_types = {
-        params.IntegerParameter: IntegerSpecParameter,
-        params.DoubleParameter: DoubleSpecParameter,
-        params.DiscreteParameter: DiscreteSpecParameter,
-        params.CategoricalParameter: CategoricalSpecParameter,
+        params.Integer: IntegerSpecParameter,
+        params.Double: DoubleSpecParameter,
+        params.Discrete: DiscreteSpecParameter,
+        params.Categorical: CategoricalSpecParameter,
     }
 
     @classmethod
@@ -309,12 +338,19 @@ if __name__ == '__main__':
     )
 
     class ModelHyperParams(params.ParameterSet):
-        num_hidden_layers = params.IntegerParameter(1, 4)
-        num_neurons_per_layer = params.DiscreteParameter(np.logspace(2, 7, num=6, base=2, dtype=np.int))
-        dropout_rate = params.DoubleParameter(0.0, 0.99)
-        activation = params.CategoricalParameter(['relu', 'sigmoid'])
+        num_hidden_layers = params.Integer(1, 4)
+        num_neurons_per_layer = params.Discrete(np.logspace(2, 7, num=6, base=2, dtype=np.int))
+        dropout_rate = params.Double(0.0, 0.99)
+        activation = params.Categorical(['relu', 'sigmoid'])
         output_dir = '/tmp/output'
         filter_size = 3
 
     search.add_parameters(ModelHyperParams())
+    print(search.to_training_input_dict())
     search.to_training_input_yaml('hps.yaml')
+    # search.run_job(
+    #     f'my_job_{str(int(time.time()))}',
+    #     'kb-experiment',
+    #     container_image_uri='gcr.io/kb-experiment/chillpill:cloud_hp_tuning_example',
+    #     args={'bucket_id': 'kb-experiment'}
+    # )

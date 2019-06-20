@@ -66,12 +66,12 @@ if __name__ == '__main__':
     # instantiate the same param class you defined above, overriding some parameters with search ranges
     # the fact that the class is shared
     my_param_ranges = MyParams(
-        activation=params.CategoricalParameter(['relu', 'tanh']),
-        num_layers=params.IntegerParameter(min_value=1, max_value=3),
-        num_neurons=params.DiscreteParameter(np.logspace(2, 8, num=7, base=2)),
-        dropout_rate=params.DoubleParameter(min_value=-0.1, max_value=0.9),
-        learning_rate=params.DiscreteParameter(np.logspace(-6, 2, 17, base=10)),
-        batch_size=params.IntegerParameter(min_value=1, max_value=128),
+        activation=params.Categorical(['relu', 'tanh']),
+        num_layers=params.Integer(min_value=1, max_value=3),
+        num_neurons=params.Discrete(np.logspace(2, 8, num=7, base=2)),
+        dropout_rate=params.Double(min_value=-0.1, max_value=0.9),
+        learning_rate=params.Discrete(np.logspace(-6, 2, 17, base=10)),
+        batch_size=params.Integer(min_value=1, max_value=128),
     )
 
     tuner = tuning.KerasHistoryRandomTuner(

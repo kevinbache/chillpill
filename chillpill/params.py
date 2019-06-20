@@ -228,7 +228,7 @@ class SamplableParameter(abc.ABC):
         pass
 
 
-class DoubleParameter(SamplableParameter):
+class Double(SamplableParameter):
     def __init__(self, min_value: float, max_value: float):
         self.min_value = min_value
         self.max_value = max_value
@@ -237,7 +237,7 @@ class DoubleParameter(SamplableParameter):
         return np.random.uniform(self.min_value, self.max_value)
 
 
-class IntegerParameter(SamplableParameter):
+class Integer(SamplableParameter):
     def __init__(self, min_value: int, max_value: int):
         self.min_value = min_value
         self.max_value = max_value
@@ -246,7 +246,7 @@ class IntegerParameter(SamplableParameter):
         return np.random.randint(self.min_value, self.max_value)
 
 
-class DiscreteParameter(SamplableParameter):
+class Discrete(SamplableParameter):
     def __init__(self, possible_values: Union[List[float], np.array]):
         self.possible_values = possible_values
 
@@ -254,7 +254,7 @@ class DiscreteParameter(SamplableParameter):
         return np.random.choice(self.possible_values)
 
 
-class CategoricalParameter(SamplableParameter):
+class Categorical(SamplableParameter):
     def __init__(self, possible_values: Union[List[Text], np.array]):
         self.possible_values = possible_values
 
@@ -266,10 +266,10 @@ if __name__ == '__main__':
     import numpy as np
 
     class ModelHyperParams(ParameterSet):
-        num_hidden_layers = IntegerParameter(1, 4)
-        num_neurons_per_layer = DiscreteParameter(np.logspace(2, 7, num=6, base=2, dtype=np.int))
-        dropout_rate = DoubleParameter(0.0, 0.99)
-        activation = CategoricalParameter(['relu', 'sigmoid'])
+        num_hidden_layers = Integer(1, 4)
+        num_neurons_per_layer = Discrete(np.logspace(2, 7, num=6, base=2, dtype=np.int))
+        dropout_rate = Double(0.0, 0.99)
+        activation = Categorical(['relu', 'sigmoid'])
         output_dir = '/tmp/output'
         filter_size = 3
 
