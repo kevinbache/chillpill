@@ -9,7 +9,7 @@ import yaml
 
 import numpy as np
 
-from chillpill import params
+from chillpill import params, gcloud_run_instructions
 
 
 def snake_2_camel(name):
@@ -144,12 +144,44 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             }
         }
 
+    # def run_package_job(
+    #         self,
+    #         gcloud_project_name: Text,
+    #         local_trainer_package_root_directory: Text,
+    #         trainer_import_string_within_package: Text,
+    #         gcloud_staging_path: Text,
+    #         gcloud_output_path: Optional[Text] = None,
+    #         job_name: Optional[Text] = None,
+    #         static_args: Optional[Dict] = None,
+    #         region: Text = 'us-central1',
+    # ):
+    #     if job_name is None:
+    #         job_name = f'my_job_{str(int(time.time()))}'
+    #     #
+    #     # cmd = f'''
+    #     # gcloud ai-platform jobs submit training {job_name} \
+    #     #     --project {gcloud_project_name} \
+    #     #     --staging-bucket {gcloud_staging_path} \
+    #     #     --job-dir {gcloud_output_path}  \
+    #     #     --package-path {local_trainer_package_root_directory} \
+    #     #     --module-name {trainer_import_string_within_package} \
+    #     #     --region {region}
+    #     #     '''
+    #     #
+    #     # if static_args:
+    #     #     static_args_str = '--\n '
+    #     #     static_args_flags = [f'--{k}={v}' for k, v in static_args.items()]
+    #     #     static_args_str += r' \ \n            '.join(static_args_flags)
+    #     #     cmd += static_args_str
+    #
+    # # def _run_job(self):
+
     def run_job(
             self,
-            job_name: Text,
-            project_name: Text,
-            container_image_uri: Text,
-            args: Optional[Dict]=None,
+            gcloud_project_name: Text,
+            run_instructions: gcloud_run_instructions.JobSpecModifier,
+            job_name: Optional[Text]=None,
+            static_args: Optional[Dict]=None,
             region: Text='us-central1',
     ):
         # https://cloud.google.com/ml-engine/docs/tensorflow/training-jobs
@@ -157,14 +189,22 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         from googleapiclient import discovery
         cloudml = discovery.build('ml', 'v1')
 
+        if job_name is None:
+            job_name = f'my_job_{str(int(time.time()))}'
+
         job_spec = self.to_training_input_dict()
         job_spec['job_id'] = job_name
         job_spec['trainingInput']['region'] = region
-        job_spec['trainingInput']['masterConfig'] = {'imageUri': container_image_uri}
-        if args:
-            job_spec['trainingInput']['args'] = [f'--{k}={v}' for k, v in args.items()]
 
-        project_id = f'projects/{project_name}'
+        # if this is a container-based run, just add the container uri
+        # if this is a package-based run, tar up the package, add the runner module, upload the package,
+        # point the job_spec toward the package
+        run_instructions.modify_job_spec_inplace(job_spec)
+
+        if static_args:
+            job_spec['trainingInput']['args'] = [f'--{k}={v}' for k, v in static_args.items()]
+
+        project_id = f'projects/{gcloud_project_name}'
         request = cloudml.projects().jobs().create(body=job_spec, parent=project_id)
 
         response = request.execute()
@@ -345,6 +385,7 @@ class SpecParameterFactory:
         return cls.hp_to_spec_types[parameter.__class__].from_hyperparameter(name, parameter)
 
 
+
 if __name__ == '__main__':
     search = HyperparamSearchSpec(
         max_trials=10,
@@ -365,8 +406,8 @@ if __name__ == '__main__':
     print(search.to_training_input_dict())
     # search.to_training_input_yaml('hps.yaml')
     search.run_job(
-        f'my_job_{str(int(time.time()))}',
-        'kb-experiment',
+        job_name=f'my_job_{str(int(time.time()))}',
+        gcloud_project_name='kb-experiment',
         container_image_uri='gcr.io/kb-experiment/chillpill:cloud_hp_tuning_example',
-        args={'bucket_id': 'kb-experiment'}
+        static_args={'bucket_id': 'kb-bucket'}
     )

@@ -27,23 +27,23 @@ cd ${THIS_DIR}/../../..
 
 THIS_EXAMPLE_DIR=chillpill/examples/cloud_complex_hp_tuning
 
-#if [ "$(uname)" == "Darwin" ]; then
-#    # Standard mac
-#    docker build -f ${THIS_EXAMPLE_DIR}/Dockerfile -t $IMAGE_URI .
-#    docker push $IMAGE_URI
-#elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-#    # Goobuntu needs sudo docker calls
-#    sudo docker build -f ${THIS_EXAMPLE_DIR}/Dockerfile -t $IMAGE_URI .
-#    sudo docker push $IMAGE_URI
-#fi
+if [ "$(uname)" == "Darwin" ]; then
+    # Standard mac
+    docker build -f ${THIS_EXAMPLE_DIR}/Dockerfile -t $IMAGE_URI .
+    docker push $IMAGE_URI
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+    # Goobuntu needs sudo docker calls
+    sudo docker build -f ${THIS_EXAMPLE_DIR}/Dockerfile -t $IMAGE_URI .
+    sudo docker push $IMAGE_URI
+fi
 
-################################
-# run ai platform training job #
-################################
-gcloud beta ai-platform jobs submit training chillpill_hp_tuning_example_$(date +%Y%m%d_%H%M%S) \
-    --region $REGION  \
-    --config ${THIS_EXAMPLE_DIR}/hps.yaml \
-    --master-image-uri $IMAGE_URI   \
-    --scale-tier BASIC   \
-    -- \
-    --save_dir=gs:////${BUCKET_ID}
+#################################
+## run ai platform training job #
+#################################
+#gcloud beta ai-platform jobs submit training chillpill_hp_tuning_example_$(date +%Y%m%d_%H%M%S) \
+#    --region $REGION  \
+#    --config ${THIS_EXAMPLE_DIR}/hps.yaml \
+#    --master-image-uri $IMAGE_URI   \
+#    --scale-tier BASIC   \
+#    -- \
+#    --save_dir=gs:////${BUCKET_ID}

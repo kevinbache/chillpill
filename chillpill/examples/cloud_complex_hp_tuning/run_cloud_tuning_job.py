@@ -1,6 +1,7 @@
 """This module runs a distributed hyperparameter tuning job on Google Cloud AI Platform."""
 import subprocess
 from pathlib import Path
+import time
 
 import numpy as np
 
@@ -9,6 +10,10 @@ from chillpill import search
 from chillpill.examples.cloud_complex_hp_tuning import train
 
 if __name__ == '__main__':
+    GCLOUD_PROJECT_NAME = 'kb-experiment'
+    CONTAINER_IMAGE_URI = f'gcr.io/{GCLOUD_PROJECT_NAME}/chillpill:cloud_hp_tuning_example'
+    GCLOUD_BUCKET_NAME = 'kb-bucket'
+
     # Create a Cloud AI Platform Hyperparameter Search object
     search = search.HyperparamSearchSpec(
         max_trials=10,
@@ -35,4 +40,11 @@ if __name__ == '__main__':
 
     # Call a bash script to build a docker image for this repo, submit it to the docker registry defined in the script
     # and run a training job on the Cloud AI Platform using this container and these hyperparameter ranges.
-    subprocess.call([this_dir / 'build_submit_run.sh'])
+    subprocess.call([this_dir / 'build_submit.sh'])
+
+    search.run_job(
+        job_name=f'sample_cmle_job_{str(int(time.time()))}',
+        gcloud_project_name=GCLOUD_PROJECT_NAME,
+        container_image_uri=CONTAINER_IMAGE_URI,
+        static_args={'bucket_id': GCLOUD_BUCKET_NAME},
+    )
