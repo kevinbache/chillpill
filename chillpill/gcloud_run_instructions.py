@@ -100,60 +100,6 @@ class JobSpecModifier(abc.ABC):
         pass
 
 
-# # 'https://cloud.google.com/storage/docs/access-control/using-iam-permissions#storage-add-bucket-iam-python'
-# def add_bucket_iam_member(bucket_name, roles, member):
-#     storage_client = storage.Client()
-#     bucket = storage_client.bucket(bucket_name)
-#
-#     policy = bucket.get_iam_policy()
-#
-#     for role in roles:
-#         policy[role].add(member)
-#
-#     bucket.set_iam_policy(policy)
-#
-#     print('Added {} with role {} to {}.'.format(
-#         member, role, bucket_name))
-#
-#
-# # 'https://cloud.google.com/storage/docs/access-control/using-iam-permissions#storage-add-bucket-iam-python'
-# # 'https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/cloud-client/acl.py'
-# def print_bucket_roles(bucket_name):
-#     storage_client = storage.Client()
-#     bucket = storage_client.bucket(bucket_name)
-#     iam_policies = bucket.get_iam_policy()
-#
-#     for iam_policy in iam_policies:
-#         members = iam_policies[iam_policy]
-#         print('Policy Role: {}, Members: {}'.format(iam_policy, members))
-#
-#     for acl_entry in bucket.acl:
-#         print('Acl Role: {}, Entity: {}'.format(acl_entry['role'], acl_entry['entity']))
-#
-#
-# def get_cloud_ml_service_account(project):
-#     from googleapiclient import discovery
-#     cloudml = discovery.build('ml', 'v1')
-#     r = cloudml.projects().getConfig(name=f'projects/{project}').execute()
-#     return r['serviceAccount']
-#
-#
-# # create bucket
-# # 'https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/cloud-client/snippets.py'
-# def create_bucket(bucket_name):
-#     """Creates a new bucket."""
-#     storage_client = storage.Client()
-#     bucket = storage_client.create_bucket(bucket_name)
-#     print('Bucket {} created'.format(bucket.name))
-#
-#
-# # https://stackoverflow.com/questions/42576366/google-cloud-storage-python-api-create-bucket-in-specified-location
-# def create_bucket_in_location(bucket_name, location):
-#     b = storage.Bucket(storage.Client(), name=bucket_name)
-#     b.location = location
-#     b.create()
-
-
 class TrainFnPackageBasedRunInstructions(JobSpecModifier):
     """
     Instructions which create a hyperparameter search run based on a train function within a Python package.
@@ -258,7 +204,12 @@ class TrainFnPackageBasedRunInstructions(JobSpecModifier):
 
         return b
 
-    def _create_and_upload_package_tar(self, local_package_root: Union[Text, Path], do_add_train_module=False):
+    def _create_and_upload_package_tar(
+            self,
+            local_package_root: Union[Text, Path],
+            do_add_train_module=False,
+            do_delete_tempdir=True,
+    ):
         tarfile_path, tmp_dir_path = self._make_tarfile_of_source_directory(local_package_root)
         if self.verbose:
             print(f"Created tarfile, {str(tarfile_path)} of source code at {local_package_root}")
@@ -270,26 +221,28 @@ class TrainFnPackageBasedRunInstructions(JobSpecModifier):
             cloud_tarfile = str(Path(self.cloud_staging_bucket) / tarfile_path.name)
             print(f"Uploading tarfile from {str(tarfile_path)} to {cloud_tarfile}")
         cloud_tarfile_url = self._upload_file(tarfile_path)
+
+        if do_delete_tempdir:
+            if self.verbose:
+                print(f"Removing temp directory: {str(tmp_dir_path)}")
+            shutil.rmtree(tmp_dir_path)
+
         return cloud_tarfile_url
 
     def modify_job_spec_inplace(self, job_spec: Dict):
         # make tarfile
-        package_urls = []
+        package_uris = []
         package_url = self._create_and_upload_package_tar(self.local_package_root_dir, do_add_train_module=True)
-        package_urls.append(package_url)
+        package_uris.append(package_url)
 
         # upload additional packages
         for additional_dir in self.additional_package_root_dirs:
             package_url = self._create_and_upload_package_tar(additional_dir, do_add_train_module=False)
-            package_urls.append(package_url)
-
-        if self.verbose:
-            print(f"Removing temp directory: {str(tmp_dir_path)}")
-        shutil.rmtree(tmp_dir_path)
+            package_uris.append(package_url)
 
         # modify job_spec appropriately
         #   ref: https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs
-        job_spec['trainingInput']['packageUris'] = package_urls
+        job_spec['trainingInput']['packageUris'] = package_uris
         job_spec['trainingInput']['pythonModule'] = self.train_module_import_str
         job_spec['trainingInput']['runtimeVersion'] = self.runtime_version
         job_spec['trainingInput']['pythonVersion'] = self.python_version

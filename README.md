@@ -10,11 +10,10 @@ Installation
 
 Examples
 --------
-For complete examples of
-  1. Local hyperparameter tuning, see `chillpill/examples/local_hp_tuning.py`
-  2. Distributed hyperparameter tuning using Google Cloud Machine Learning Engine, set the variables 
-     required in `chillpill/examples/cloud_complex_hp_tuning/build_and_submit.sh` and then run
-     `chillpill/examples/cloud_complex_hp_tuning/run_tuning_job.py`.
+See https://github.com/kevinbache/chillpill_examples for complete working examples of
+1. [Local hyperparameter tuning](https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/local_hp_tuning)
+2. [Cloud-Based Tuning from Train Function](https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/cloud_hp_tuning_from_train_fn)  
+3. [Cloud-Based Tuning from Container](https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/cloud_hp_tuning_from_container)  
 
 
 Usage
@@ -32,7 +31,7 @@ class ModelHyperParams(params.ParameterSet):
     activation = 'relu'
     output_dir = '/tmp/output'
 ```
-
+ 
 The `params.ParameterSet`'s `__init__` method will copy these class members into any instantiated subclasses so they
 won't be shared between instantiated objects.   
 
@@ -92,7 +91,7 @@ tuning.run_tuning(tuner, train_fn)
 best_acc, best_params = tuner.get_best(do_max=True)
 ```
 
-See `chillpill/examples/local_hp_tuning.py` for a complete example of local hyperparameter tuning for Keras models.
+See https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/local_hp_tuning for a complete example of local hyperparameter tuning for Keras models.
 
 `ParameterSet`s can also be used in conjunction with `search.HyperparamSearchSpec` to conduct full hyperparameter 
 searches using Google's Cloud Machine Learning Engine.  For example: 
@@ -241,7 +240,7 @@ superclass should be able to be subclassed so that useful methods can be impleme
 
 Summary
 -------
-Overall, `PameterSet`s offer (Hyper)Parameter objects which are powerful but still as simple to use as it is 
+Overall, `ParameterSet`s offer (Hyper)Parameter objects which are powerful but still as simple to use as it is 
 possible to be in python.
 
 Authors
