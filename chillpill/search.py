@@ -144,38 +144,6 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             }
         }
 
-    # def run_package_job(
-    #         self,
-    #         gcloud_project_name: Text,
-    #         local_trainer_package_root_directory: Text,
-    #         trainer_import_string_within_package: Text,
-    #         gcloud_staging_path: Text,
-    #         gcloud_output_path: Optional[Text] = None,
-    #         job_name: Optional[Text] = None,
-    #         static_args: Optional[Dict] = None,
-    #         region: Text = 'us-central1',
-    # ):
-    #     if job_name is None:
-    #         job_name = f'my_job_{str(int(time.time()))}'
-    #     #
-    #     # cmd = f'''
-    #     # gcloud ai-platform jobs submit training {job_name} \
-    #     #     --project {gcloud_project_name} \
-    #     #     --staging-bucket {gcloud_staging_path} \
-    #     #     --job-dir {gcloud_output_path}  \
-    #     #     --package-path {local_trainer_package_root_directory} \
-    #     #     --module-name {trainer_import_string_within_package} \
-    #     #     --region {region}
-    #     #     '''
-    #     #
-    #     # if static_args:
-    #     #     static_args_str = '--\n '
-    #     #     static_args_flags = [f'--{k}={v}' for k, v in static_args.items()]
-    #     #     static_args_str += r' \ \n            '.join(static_args_flags)
-    #     #     cmd += static_args_str
-    #
-    # # def _run_job(self):
-
     def run_job(
             self,
             gcloud_project_name: Text,
@@ -186,8 +154,6 @@ class HyperparamSearchSpec(params.HasClassDefaults):
     ):
         # https://cloud.google.com/ml-engine/docs/tensorflow/training-jobs
         # https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs#TrainingInput
-        from googleapiclient import discovery
-        cloudml = discovery.build('ml', 'v1')
 
         if job_name is None:
             job_name = f'my_job_{str(int(time.time()))}'
@@ -205,6 +171,11 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             job_spec['trainingInput']['args'] = [f'--{k}={v}' for k, v in static_args.items()]
 
         project_id = f'projects/{gcloud_project_name}'
+
+        print(job_spec)
+
+        from googleapiclient import discovery
+        cloudml = discovery.build('ml', 'v1')
         request = cloudml.projects().jobs().create(body=job_spec, parent=project_id)
 
         response = request.execute()
@@ -218,8 +189,9 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         or continue streaming the logs with the command
 
           $ gcloud ai-platform jobs stream-logs {job_name}
-        jobId: {job_name}
-        state: QUEUED
+
+        You can see the results of your hyperparameter optimization at: 
+          https://console.cloud.google.com/mlengine/jobs/{job_name}/
         '''
         print(msg)
 
@@ -385,7 +357,6 @@ class SpecParameterFactory:
         return cls.hp_to_spec_types[parameter.__class__].from_hyperparameter(name, parameter)
 
 
-
 if __name__ == '__main__':
     search = HyperparamSearchSpec(
         max_trials=10,
@@ -404,10 +375,13 @@ if __name__ == '__main__':
 
     search.add_parameters(ModelHyperParams())
     print(search.to_training_input_dict())
-    # search.to_training_input_yaml('hps.yaml')
+
+    run_instructions = \
+        gcloud_run_instructions.ContainerBasedRunInstructions('gcr.io/kb-experiment/chillpill:cloud_hp_tuning_example')
+
     search.run_job(
         job_name=f'my_job_{str(int(time.time()))}',
+        run_instructions=run_instructions,
         gcloud_project_name='kb-experiment',
-        container_image_uri='gcr.io/kb-experiment/chillpill:cloud_hp_tuning_example',
-        static_args={'bucket_id': 'kb-bucket'}
+        # static_args={'bucket_id': 'kb-bucket'}
     )

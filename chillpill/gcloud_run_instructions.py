@@ -1,13 +1,16 @@
 import abc
+import contextlib
 import enum
+import time
+
 from google.cloud import storage
-from io import StringIO
+import io
 import os
 from pathlib import Path
-import six
+import shutil
 import tarfile
 import tempfile
-from typing import Text, Optional, Dict
+from typing import Text, Optional, Dict, Tuple, List
 
 
 class MachineType:
@@ -96,16 +99,100 @@ class JobSpecModifier(abc.ABC):
         pass
 
 
+# 'https://cloud.google.com/storage/docs/access-control/using-iam-permissions#storage-add-bucket-iam-python'
+def add_bucket_iam_member(bucket_name, roles, member):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+
+    policy = bucket.get_iam_policy()
+
+    for role in roles:
+        policy[role].add(member)
+
+    bucket.set_iam_policy(policy)
+
+    print('Added {} with role {} to {}.'.format(
+        member, role, bucket_name))
+
+
+# 'https://cloud.google.com/storage/docs/access-control/using-iam-permissions#storage-add-bucket-iam-python'
+# 'https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/cloud-client/acl.py'
+def print_bucket_roles(bucket_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    iam_policies = bucket.get_iam_policy()
+
+    for iam_policy in iam_policies:
+        members = iam_policies[iam_policy]
+        print('Policy Role: {}, Members: {}'.format(iam_policy, members))
+
+    for acl_entry in bucket.acl:
+        print('Acl Role: {}, Entity: {}'.format(acl_entry['role'], acl_entry['entity']))
+
+
+def get_cloud_ml_service_account(project):
+    from googleapiclient import discovery
+    cloudml = discovery.build('ml', 'v1')
+    r = cloudml.projects().getConfig(name=f'projects/{project}').execute()
+    return r['serviceAccount']
+
+
+# create bucket
+# 'https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/cloud-client/snippets.py'
+def create_bucket(bucket_name):
+    """Creates a new bucket."""
+    storage_client = storage.Client()
+    bucket = storage_client.create_bucket(bucket_name)
+    print('Bucket {} created'.format(bucket.name))
+
+
+# https://stackoverflow.com/questions/42576366/google-cloud-storage-python-api-create-bucket-in-specified-location
+def create_bucket_in_location(bucket_name, location):
+    b = storage.Bucket(storage.Client(), name=bucket_name)
+    b.location = location
+    b.create()
+
+
+def create_bucket_if_not_exists(bucket_name: Text, project: Text, region: Text ='us-central1'):
+    client = storage.Client()
+    b = storage.Bucket(client, name=bucket_name)
+    if not b.exists():
+        b.create(client, project=project, location=region)
+
+    # bucket = client.get_bucket(bucket_name)
+    # if not bucket.exists():
+    #     bucket = client.create_bucket(bucket_name)
+    # bucket.location = region
+
+    # # https://cloud.google.com/storage/docs/access-control/create-manage-lists#storage-set-acls-python
+    # # Reload fetches the current ACL from Cloud Storage.
+    # b.acl.reload()
+    # # You can also use `group`, `domain`, `all_authenticated` and `all` to
+    # # grant access to different types of entities. You can also use
+    # # `grant_read` or `grant_write` to grant different roles.
+    # b.default_object_acl.user(owner_email).grant_owner()
+    # ml_service_email = get_cloud_ml_service_account(project)
+    # b.default_object_acl.user(ml_service_email).grant_owner()
+    # b.default_object_acl.save()
+
+    return b
+
+
 class TrainFnPackageBasedRunInstructions(JobSpecModifier):
     TRAIN_MODULE_NAME = 'chillpill_added_train_module.py'
-    SOURCE_TARFILE_NAME = 'source.tar.gz'
+    SOURCE_TARFILE_NAME_TEMPLATE = 'source_{}.tar'
 
     def __init__(
             self,
-            local_source_root_dir: Text,
+            local_train_package_root_dir: Text,
             train_function_import_string: Text,
             train_params_type_import_string: Text,
             cloud_staging_bucket: Text,
+            # cloud_staging_bucket_owner_email: Text,
+            package_name: Text,
+            project: Text,
+            additional_package_root_dirs: Optional[List[Text]]=None,
+            region: Text='us-central',
             runtime_version: Text = '1.13',
             python_version: Text = '3.5',
             verbose=True,
@@ -113,7 +200,7 @@ class TrainFnPackageBasedRunInstructions(JobSpecModifier):
         """
 
         Args:
-            local_source_root_dir:
+            local_train_package_root_dir:
                 The root of your local source code files.  This directory should contain a Python package, meaning it
                 has a setup.py file and your package subdirectory.
                 Example structure:
@@ -145,38 +232,108 @@ class TrainFnPackageBasedRunInstructions(JobSpecModifier):
             verbose:
                 If True, print some status messages as you go.
         """
-        self.local_package_root_dir = local_source_root_dir
+        self.local_package_root_dir = local_train_package_root_dir
+        if additional_package_root_dirs is None:
+            additional_package_root_dirs = []
+        self.num_source_dirs_uploaded = 0
+
+        self.additional_package_root_dirs = additional_package_root_dirs
         self.train_function_import_string = train_function_import_string
         self.train_params_type_import_string = train_params_type_import_string
-        self.cloud_bucket_path = cloud_staging_bucket
+        self.package_name = package_name
+        self.train_module_import_str = f'{self.package_name}.{str(Path(self.TRAIN_MODULE_NAME).stem)}'
+        self.project = project
+        self.region = region
+        self.cloud_staging_bucket = cloud_staging_bucket
+        # self.cloud_staging_bucket_owner_email = cloud_staging_bucket_owner_email
         self.runtime_version = runtime_version
         self.python_version = python_version
         self.verbose = verbose
 
-    def modify_job_spec_inplace(self, job_spec: Dict):
-        # make tarfile
-        tarfile_path = self._make_tarfile_of_source_directory(self.local_package_root_dir)
+        # 'https://cloud.google.com/ml-engine/docs/tensorflow/packaging-trainer'
+        #     '''
+        #     --staging-bucket specifies the Cloud Storage location where you want to stage your training and
+        #     dependency packages. Your GCP project must have access to this Cloud Storage bucket, and the bucket
+        #     should be in the same region that you run the job. See the available regions for AI Platform services.
+        #     If you don't specify a staging bucket, AI Platform stages your packages in the location specified in
+        #     the job-dir parameter.
+        #     '''
+        create_bucket_if_not_exists(
+            bucket_name=self.cloud_staging_bucket,
+            # owner_email=self.cloud_staging_bucket_owner_email,
+            project=self.project,
+            region=region
+        )
+
+        # create_bucket(self.cloud_staging_bucket)
+        # create_bucket_in_location(self.cloud_staging_bucket, location=region)
+
+        print_bucket_roles(self.cloud_staging_bucket)
+        roles = [
+            'roles/storage.legacyObjectReader',
+            'roles/storage.legacyObjectOwner',
+            'roles/storage.legacyBucketReader',
+            'roles/storage.legacyBucketWriter',
+            'roles/storage.legacyBucketOwner',
+        ]
+        add_bucket_iam_member(
+            self.cloud_staging_bucket,
+            roles,
+            f"serviceAccount:{get_cloud_ml_service_account(self.project)}")
+        print_bucket_roles(self.cloud_staging_bucket)
+        print('done')
+        # end __init__
+
+    def create_and_upload_package_tar(self, local_package_root: Text, do_add_train_module=False):
+        tarfile_path, tmp_dir_path = self._make_tarfile_of_source_directory(local_package_root)
         if self.verbose:
-            print(f"Created tarfile, {str(tarfile_path)} of source code at {self.local_package_root_dir}")
-        self._add_train_module_to_tarfile(tarfile_path)
+            print(f"Created tarfile, {str(tarfile_path)} of source code at {local_package_root}")
+        if do_add_train_module:
+            self._add_train_module_to_tarfile(tarfile_path)
 
         # upload tarfile
         if self.verbose:
-            cloud_tarfile = str(Path(self.cloud_bucket_path) / tarfile_path.name)
+            cloud_tarfile = str(Path(self.cloud_staging_bucket) / tarfile_path.name)
             print(f"Uploading tarfile from {str(tarfile_path)} to {cloud_tarfile}")
         cloud_tarfile_url = self._upload_file(tarfile_path)
+        return cloud_tarfile_url
+
+    def modify_job_spec_inplace(self, job_spec: Dict):
+        # make tarfile
+        package_urls = []
+        package_url = self.create_and_upload_package_tar(self.local_package_root_dir, do_add_train_module=True)
+        package_urls.append(package_url)
+
+        # upload additional packages
+        for additional_dir in self.additional_package_root_dirs:
+            package_url = self.create_and_upload_package_tar(additional_dir, do_add_train_module=False)
+            package_urls.append(package_url)
+
+        # if self.verbose:
+        #     print(f"Removing temp directory: {str(tmp_dir_path)}")
+        # shutil.rmtree(tmp_dir_path)
 
         # modify job_spec appropriately
-        job_spec['trainingInput']['packageUris'] = [cloud_tarfile_url]
+        #   ref: https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs
+        job_spec['trainingInput']['packageUris'] = package_urls
+        job_spec['trainingInput']['pythonModule'] = self.train_module_import_str
         job_spec['trainingInput']['runtimeVersion'] = self.runtime_version
         job_spec['trainingInput']['pythonVersion'] = self.python_version
 
-    def _make_tarfile_of_source_directory(self, local_source_root_dir: Text) -> Path:
-        with tempfile.TemporaryDirectory() as tempdir:
-            output_path = Path(tempdir) / self.SOURCE_TARFILE_NAME
-            with tarfile.open(output_path, "w:gz") as tar:
-                tar.add(local_source_root_dir, arcname=os.path.basename(local_source_root_dir))
-        return output_path
+    def _make_tarfile_of_source_directory(self, local_source_root_dir: Text) -> Tuple[Path, Path]:
+        tmp_dir_path = Path(tempfile.mkdtemp())
+        self.num_source_dirs_uploaded += 1
+        output_path = tmp_dir_path / self.SOURCE_TARFILE_NAME_TEMPLATE.format(self.num_source_dirs_uploaded)
+        with tarfile.open(output_path, "w") as tar:
+            def filter_fn(tar_info: tarfile.TarInfo):
+                if tar_info.name.endswith('.egg-info') \
+                        or tar_info.name.endswith('.pyc') \
+                        or '__pycache__' in tar_info.name:
+                    return None
+                else:
+                    return tar_info
+            tar.add(local_source_root_dir, arcname='', filter=filter_fn)
+        return output_path, tmp_dir_path
 
     def _add_train_module_to_tarfile(self, tarfile_path: Path):
         # https://stackoverflow.com/questions/2239655/how-can-files-be-added-to-a-tarfile-with-python-without-adding-the-directory-hi'''
@@ -206,9 +363,21 @@ if __name__ == '__main__':
     print(hp)
     train_fn(hp)
 """
-        with tarfile.open(tarfile_path, "w|gz") as tar:
-            # todo: stick inside directory
-            tar.addfile(tarfile.TarInfo(self.TRAIN_MODULE_NAME), StringIO.StringIO(contents))
+        with tarfile.open(str(tarfile_path), "a") as tarf:
+            with contextlib.closing(io.BytesIO(contents.encode())) as fobj:
+                filename = str(Path(self.package_name) / self.TRAIN_MODULE_NAME)
+                tarinfo = tarfile.TarInfo(filename)
+                tarinfo.size = len(fobj.getvalue())
+                tarinfo.mtime = time.time()
+                tarf.addfile(tarinfo, fileobj=fobj)
+
+            # # s = io.StringIO()
+            # # s.write(contents)
+            # # s.seek(0)
+            # # tarinfo = tarfile.TarInfo(name=str(Path(self.package_name) / self.TRAIN_MODULE_NAME))
+            # # tarinfo.size = len(s.buf)
+            #
+            # tarf.addfile(tarinfo=tarinfo, fileobj=s)
 
     def _upload_file(self, file_path: Path):
         # https://github.com/GoogleCloudPlatform/getting-started-python/blob/master/3-binary-data/bookshelf/storage.py
@@ -216,17 +385,25 @@ if __name__ == '__main__':
         Uploads a file to a given Cloud Storage bucket and returns the public url
         to the new object.
         """
+        # from google.auth import compute_engine
+        # cred = compute_engine.Credentials()
+
         client = storage.Client()
-        bucket = client.bucket(self.cloud_bucket_path)
+        bucket = client.bucket(self.cloud_staging_bucket)
         blob = bucket.blob(file_path.name)
         blob.upload_from_filename(str(file_path))
 
-        url = blob.public_url
+        # # Reload fetches the current ACL from Cloud Storage.
+        # blob.acl.reload()
+        #
+        # # You can also use `group`, `domain`, `all_authenticated` and `all` to
+        # # grant access to different types of entities. You can also use
+        # # `grant_read` or `grant_write` to grant different roles.
+        # blob.acl.user(blob_owner_email).grant_owner()
+        # blob.acl.save()
 
-        if isinstance(url, six.binary_type):
-            url = url.decode('utf-8')
-
-        return url
+        package_location_on_cloud = f'gs://{str(Path(self.cloud_staging_bucket) / file_path.name)}'
+        return package_location_on_cloud
 
 
 class ContainerBasedRunInstructions(JobSpecModifier):
