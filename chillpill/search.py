@@ -4,7 +4,7 @@ See https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs#hyperpara
 import abc
 import enum
 import time
-from typing import Text, Optional, Union, List, Dict, Callable, Any
+from typing import Text, Optional, Union, List, Dict, Callable, Any, Type
 import yaml
 
 import numpy as np
@@ -144,10 +144,62 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             }
         }
 
-    def run_job(
+    def run_from_trian_fn(
             self,
+            train_fn: Callable[[params.ParameterSet], None],
+            train_params_type: Type[params.ParameterSet],
+            cloud_staging_bucket: Text,
             gcloud_project_name: Text,
+            do_error_if_cloud_staging_bucket_does_not_exist=False,
+            additional_package_root_dirs: Optional[List[Text]] = None,
+            runtime_version: Text = '1.13',
+            python_version: Text = '3.5',
+            job_name: Optional[Text] = None,
+            static_args: Optional[Dict] = None,
+            region: Text = 'us-central1',
+            verbose=True,
+    ):
+        ri = gcloud_run_instructions.TrainFnPackageBasedRunInstructions(
+            train_fn=train_fn,
+            train_params_type=train_params_type,
+            cloud_staging_bucket=cloud_staging_bucket,
+            cloud_project=gcloud_project_name,
+            do_error_if_cloud_staging_bucket_does_not_exist=do_error_if_cloud_staging_bucket_does_not_exist,
+            additional_package_root_dirs=additional_package_root_dirs,
+            runtime_version=runtime_version,
+            python_version=python_version,
+            region=region,
+            verbose=verbose,
+        )
+        return self._run_job_from_run_instructions(
+            gcloud_project_name=gcloud_project_name,
+            run_instructions=ri,
+            job_name=job_name,
+            static_args=static_args,
+            region=region,
+        )
+
+    def run_from_container(
+            self,
+            container_image_uri: Text,
+            gcloud_project_name: Text,
+            job_name: Optional[Text] = None,
+            static_args: Optional[Dict] = None,
+            region: Text = 'us-central1',
+    ):
+        ri = gcloud_run_instructions.ContainerBasedRunInstructions(container_image_uri=container_image_uri)
+        self._run_job_from_run_instructions(
+            run_instructions=ri,
+            gcloud_project_name=gcloud_project_name,
+            job_name=job_name,
+            static_args=static_args,
+            region=region,
+        )
+
+    def _run_job_from_run_instructions(
+            self,
             run_instructions: gcloud_run_instructions.JobSpecModifier,
+            gcloud_project_name: Text,
             job_name: Optional[Text]=None,
             static_args: Optional[Dict]=None,
             region: Text='us-central1',
@@ -379,7 +431,7 @@ if __name__ == '__main__':
     run_instructions = \
         gcloud_run_instructions.ContainerBasedRunInstructions('gcr.io/kb-experiment/chillpill:cloud_hp_tuning_example')
 
-    search.run_job(
+    search._run_job_from_run_instructions(
         job_name=f'my_job_{str(int(time.time()))}',
         run_instructions=run_instructions,
         gcloud_project_name='kb-experiment',

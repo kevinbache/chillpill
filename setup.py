@@ -33,6 +33,7 @@ setup(
         'keras',
         'tensorflow',
         'cloudml-hypertune',
+        'google-cloud-storage',
     ],
 
     classifiers=[

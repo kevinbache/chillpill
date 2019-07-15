@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # and run a training job on the Cloud AI Platform using this container and these hyperparameter ranges.
     subprocess.call([this_dir / 'build_submit.sh'])
 
-    search.run_job(
+    search._run_job_from_run_instructions(
         job_name=f'sample_cmle_job_{str(int(time.time()))}',
         gcloud_project_name=GCLOUD_PROJECT_NAME,
         container_image_uri=CONTAINER_IMAGE_URI,
