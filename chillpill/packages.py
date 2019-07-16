@@ -33,15 +33,10 @@ def get_import_string_of_function_or_type(obj: Union[Callable, Type]):
     return f'{mod}.{name}'
 
 
-
 def get_package_name(obj: Any):
     """Get the name of the package containing the given object."""
     outs = inspect.getmodule(obj).__name__.split('.', 1)
     return outs[0]
-
-
-def train_fn():
-    pass
 
 
 if __name__ == '__main__':
