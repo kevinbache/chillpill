@@ -88,6 +88,9 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         self.algorithm = algorithm
         self.params = []
 
+        self.have_set_parameters = False
+        self.parameters_type = None
+
     ###########################################
     # low level methods which expose ScaleType
     def _add_integer_parameter(self, parameter_name: Text, min_value: int, max_value: int, scale_type=ScaleType.NONE):
@@ -108,6 +111,9 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         self.params.append(SpecParameterFactory.spec_param_from_param(name, parameter))
 
     def add_parameters(self, parameters: params.ParameterSet):
+        self.have_set_parameters = True
+        self.parameters_type = type(parameters)
+
         for name, attribute in parameters.__dict__.items():
             if isinstance(attribute, params.SamplableParameter):
                 self._add_parameter(name, attribute)
@@ -144,10 +150,9 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             }
         }
 
-    def run_from_trian_fn(
+    def run_from_train_fn(
             self,
             train_fn: Callable[[params.ParameterSet], None],
-            train_params_type: Type[params.ParameterSet],
             cloud_staging_bucket: Text,
             gcloud_project_name: Text,
             do_error_if_cloud_staging_bucket_does_not_exist=False,
@@ -159,9 +164,11 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             region: Text = 'us-central1',
             verbose=True,
     ):
+        self._check_run()
+
         ri = gcloud_run_instructions.TrainFnPackageBasedRunInstructions(
             train_fn=train_fn,
-            train_params_type=train_params_type,
+            train_params_type=self.parameters_type,
             cloud_staging_bucket=cloud_staging_bucket,
             cloud_project=gcloud_project_name,
             do_error_if_cloud_staging_bucket_does_not_exist=do_error_if_cloud_staging_bucket_does_not_exist,
@@ -187,6 +194,8 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             static_args: Optional[Dict] = None,
             region: Text = 'us-central1',
     ):
+        self._check_run()
+
         ri = gcloud_run_instructions.ContainerBasedRunInstructions(container_image_uri=container_image_uri)
         self._run_job_from_run_instructions(
             run_instructions=ri,
@@ -195,6 +204,10 @@ class HyperparamSearchSpec(params.HasClassDefaults):
             static_args=static_args,
             region=region,
         )
+
+    def _check_run(self):
+        if not self.have_set_parameters:
+            raise ValueError("You have to run the add_parameters() method before you run a job.")
 
     def _run_job_from_run_instructions(
             self,
