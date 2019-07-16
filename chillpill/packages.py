@@ -1,6 +1,6 @@
 import inspect
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Callable, Union, Type
 
 SETUP_NAME = 'setup.py'
 
@@ -27,25 +27,11 @@ def find_package_root(obj: Any) -> Optional[Path]:
         return out.parent
 
 
-def get_import_string_of_type(obj: Any):
-    """Get the import string for the type of an object.
-
-    Example:
-        class MyClass:
-            pass
-
-        my_obj = MyClass()
-        get_import_string_of_type(my_obj)
-        #   --> 'path.to.module.MyClass'
-
-    This also works correctly if the class is not defined in the same module as the member.
-    """
+def get_import_string_of_function_or_type(obj: Union[Callable, Type]):
     mod = inspect.getmodule(obj).__name__
-    if isinstance(obj, type):
-        name = obj.__name__
-    else:
-        name = obj.__class__.__name__
+    name = obj.__name__
     return f'{mod}.{name}'
+
 
 
 def get_package_name(obj: Any):
@@ -54,3 +40,9 @@ def get_package_name(obj: Any):
     return outs[0]
 
 
+def train_fn():
+    pass
+
+
+if __name__ == '__main__':
+    print(get_import_string_of_function_or_type(train_fn))

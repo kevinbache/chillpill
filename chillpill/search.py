@@ -88,8 +88,8 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         self.algorithm = algorithm
         self.params = []
 
-        self.have_set_parameters = False
-        self.parameters_type = None
+        self._have_set_parameters_type = False
+        self._parameters_type = None
 
     ###########################################
     # low level methods which expose ScaleType
@@ -111,8 +111,8 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         self.params.append(SpecParameterFactory.spec_param_from_param(name, parameter))
 
     def add_parameters(self, parameters: params.ParameterSet):
-        self.have_set_parameters = True
-        self.parameters_type = type(parameters)
+        self._have_set_parameters_type = True
+        self._parameters_type = type(parameters)
 
         for name, attribute in parameters.__dict__.items():
             if isinstance(attribute, params.SamplableParameter):
@@ -123,7 +123,7 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         if isinstance(obj, list):
             return [cls._to_dict_inner(e) for e in obj]
         elif isinstance(obj, dict):
-            return {k: cls._to_dict_inner(v) for k, v in obj.items()}
+            return {k: cls._to_dict_inner(v) for k, v in obj.items() if not k.startswith('_')}
         elif isinstance(obj, SpecParameter):
             return obj.to_dict()
         elif isinstance(obj, enum.Enum):
@@ -168,7 +168,7 @@ class HyperparamSearchSpec(params.HasClassDefaults):
 
         ri = gcloud_run_instructions.TrainFnPackageBasedRunInstructions(
             train_fn=train_fn,
-            train_params_type=self.parameters_type,
+            train_params_type=self._parameters_type,
             cloud_staging_bucket=cloud_staging_bucket,
             cloud_project=gcloud_project_name,
             do_error_if_cloud_staging_bucket_does_not_exist=do_error_if_cloud_staging_bucket_does_not_exist,
@@ -206,7 +206,7 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         )
 
     def _check_run(self):
-        if not self.have_set_parameters:
+        if not self._have_set_parameters_type:
             raise ValueError("You have to run the add_parameters() method before you run a job.")
 
     def _run_job_from_run_instructions(
