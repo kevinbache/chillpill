@@ -56,6 +56,7 @@ searcher = search.HyperparamSearchSpec(
     max_failed_trials=2,
     hyperparameter_metric_tag='val_acc',
 )
+searcher.add_parameters(my_param_ranges)
 
 # Run hyperparameter search job
 searcher.run_from_trian_fn(

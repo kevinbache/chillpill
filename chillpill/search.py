@@ -107,7 +107,7 @@ class HyperparamSearchSpec(params.HasClassDefaults):
     def _add_parameter(self, name: Text, parameter: params.SamplableParameter):
         self.params.append(SpecParameterFactory.spec_param_from_param(name, parameter))
 
-    def _add_parameters(self, parameters: params.ParameterSet):
+    def add_parameters(self, parameters: params.ParameterSet):
         for name, attribute in parameters.__dict__.items():
             if isinstance(attribute, params.SamplableParameter):
                 self._add_parameter(name, attribute)
@@ -424,8 +424,7 @@ if __name__ == '__main__':
         activation = params.Categorical(['relu', 'sigmoid'])
         output_dir = '/tmp/output'
         filter_size = 3
-
-    search._add_parameters(ModelHyperParams())
+    search.add_parameters(ModelHyperParams())
     print(search.to_training_input_dict())
 
     run_instructions = \

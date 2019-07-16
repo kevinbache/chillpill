@@ -27,10 +27,24 @@ def find_package_root(obj: Any) -> Optional[Path]:
         return out.parent
 
 
-def get_import_string(obj: Any):
-    """Get the import string for any object."""
+def get_import_string_of_type(obj: Any):
+    """Get the import string for the type of an object.
+
+    Example:
+        class MyClass:
+            pass
+
+        my_obj = MyClass()
+        get_import_string_of_type(my_obj)
+        #   --> 'path.to.module.MyClass'
+
+    This also works correctly if the class is not defined in the same module as the member.
+    """
     mod = inspect.getmodule(obj).__name__
-    name = obj.__name__
+    if isinstance(obj, type):
+        name = obj.__name__
+    else:
+        name = obj.__class__.__name__
     return f'{mod}.{name}'
 
 
@@ -40,9 +54,3 @@ def get_package_name(obj: Any):
     return outs[0]
 
 
-if __name__ == '__main__':
-    from chillpill.examples.local_hp_tuning import train_fn
-    print(find_package_root(train_fn))
-    print(find_module_root(train_fn))
-    print(get_import_string(train_fn))
-    print(get_package_name(train_fn))

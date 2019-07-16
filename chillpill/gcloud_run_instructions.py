@@ -160,8 +160,8 @@ class TrainFnPackageBasedRunInstructions(JobSpecModifier):
                 If True, print some status messages as you go.
         """
         local_train_package_root_dir = packages.find_package_root(train_fn)
-        train_function_import_string = packages.get_import_string(train_fn)
-        train_params_type_import_string = packages.get_import_string(train_params_type)
+        train_function_import_string = packages.get_import_string_of_type(train_fn)
+        train_params_type_import_string = packages.get_import_string_of_type(train_params_type)
         package_name = packages.get_package_name(train_fn)
 
         self.local_package_root_dir = local_train_package_root_dir
