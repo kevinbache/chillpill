@@ -7,14 +7,12 @@ Installation
 ------------
 `$ pip install --editable .` from within this directory.
 
-
 Examples
 --------
 See https://github.com/kevinbache/chillpill_examples for complete working examples of
 1. [Local hyperparameter tuning](https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/local_hp_tuning)
 2. [Cloud-Based Tuning from Train Function](https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/cloud_hp_tuning_from_train_fn)  
 3. [Cloud-Based Tuning from Container](https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/cloud_hp_tuning_from_container)  
-
 
 Usage
 -----
@@ -143,8 +141,9 @@ trainingInput:
 ```
 which can be used for 
 [distributed hyperparameter tuning](https://cloud.google.com/blog/products/gcp/hyperparameter-tuning-cloud-machine-learning-engine-using-bayesian-optimization) 
-using Google Cloud Machine Learning Engine.  See `chillpill/examples/cloud_complex_hp_tuning/run_tuning_job.py` 
-for a complete example.  
+using Google Cloud Machine Learning Engine.  See 
+https://github.com/kevinbache/chillpill_examples/tree/master/chillpill_examples/cloud_hp_tuning_from_train_fn for a 
+complete example. 
 
 Finally, you can rebuild this (Hyper)`ParameterSet` object on the cluster using `chillpill/simple_argparse.py` module and 
 `ParameterSet.from_dict()`.  For example, in a python script invoked with the arguments:

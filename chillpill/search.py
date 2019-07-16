@@ -104,13 +104,13 @@ class HyperparamSearchSpec(params.HasClassDefaults):
 
     ############################################################
     # high level methods which work with hp.SamplableParameters
-    def add_parameter(self, name: Text, parameter: params.SamplableParameter):
+    def _add_parameter(self, name: Text, parameter: params.SamplableParameter):
         self.params.append(SpecParameterFactory.spec_param_from_param(name, parameter))
 
-    def add_parameters(self, parameters: params.ParameterSet):
+    def _add_parameters(self, parameters: params.ParameterSet):
         for name, attribute in parameters.__dict__.items():
             if isinstance(attribute, params.SamplableParameter):
-                self.add_parameter(name, attribute)
+                self._add_parameter(name, attribute)
 
     @classmethod
     def _to_dict_inner(cls, obj: Any) -> Any:
@@ -425,7 +425,7 @@ if __name__ == '__main__':
         output_dir = '/tmp/output'
         filter_size = 3
 
-    search.add_parameters(ModelHyperParams())
+    search._add_parameters(ModelHyperParams())
     print(search.to_training_input_dict())
 
     run_instructions = \
