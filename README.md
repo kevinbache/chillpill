@@ -1,6 +1,6 @@
 chillpill
 =========
-`chillpill` calms your hyperparameters with style.  
+`chillpill` calms your hyperparameters for the cloud.  
 
 Hyperparameter optimization is important to any deep learning workflow, but it's been difficult to do at scale. 
 Until now.  
