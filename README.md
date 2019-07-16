@@ -29,7 +29,9 @@ class ModelHyperParams(params.ParameterSet):
 Next, create a train function which takes your hyperparameter type as an argument:
 ```python
 def train_fn(hp: ModelHyperParams):
-    ...
+    # Your normal training code goes in a function like this.
+    # Access your param values with `hp.filter_size` etc. 
+    pass
 ```
 and use your default hyperparameter values for development.
 
@@ -88,8 +90,11 @@ Clicking the link above brings up a screen from which you can stream your worker
 And which will compile your parameter values and results into a table as they become available:
 ![Results](images/results.png)
 
-Installation
+Requirements
 ------------
+You need a [Google Cloud](https://cloud.google.com/deployment-manager/docs/step-by-step-guide/installation-and-setup) 
+account with billing set up.  You get $300 of free credit and can run these samples for pennies.
+
 `$ pip install --editable .` from within this directory.
 
 Examples
