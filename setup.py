@@ -30,10 +30,10 @@ setup(
     install_requires=[
         'numpy',
         'scikit-learn',
-        'keras',
-        'tensorflow',
-        'cloudml-hypertune',
-        'google-cloud-storage',
+        # 'keras',
+        # 'tensorflow',
+        # 'cloudml-hypertune',
+        # 'google-cloud-storage',
     ],
 
     classifiers=[
