@@ -1,7 +1,7 @@
 import abc
 import copy
 import types
-from typing import Union, List, Text, Dict
+from typing import Union, List, Text, Dict, Optional, Iterable, Any
 
 import numpy as np
 
@@ -204,8 +204,18 @@ class ParameterSet(HasClassDefaults):
     def from_dict(cls, d: Dict):
         hp = cls()
         for k, v in d.items():
+            if np.issubdtype(type(v), np.integer):
+                v = int(v)
+            elif np.issubdtype(type(v), np.floating):
+                v = float(v)
             hp.__setattr__(k, v)
         return hp
+
+    def to_dict(self):
+        out = {}
+        for attr_name in self._get_member_names():
+            out[attr_name] = self.__getattribute__(attr_name)
+        return out
 
     def sample(self):
         out = copy.deepcopy(self)
@@ -246,20 +256,27 @@ class Integer(SamplableParameter):
         return np.random.randint(self.min_value, self.max_value)
 
 
-class Discrete(SamplableParameter):
-    def __init__(self, possible_values: Union[List[float], np.array]):
+class ProbabilityCapableParameter(SamplableParameter):
+    def __init__(self, possible_values: Union[List[Any], np.array], probs: Optional[Iterable[Any]] = None):
         self.possible_values = possible_values
+        self.probs = probs
+
+    @classmethod
+    def from_prob_dict(cls, d: Dict[Any, float]):
+        return cls(d.keys(), probs=d.values())
 
     def sample(self):
-        return np.random.choice(self.possible_values)
+        return np.random.choice(self.possible_values, p=self.probs)
 
 
-class Categorical(SamplableParameter):
-    def __init__(self, possible_values: Union[List[Text], np.array]):
-        self.possible_values = possible_values
+class Discrete(ProbabilityCapableParameter):
+    def __init__(self, possible_values: Union[List[float], np.array], probs: Optional[Iterable[float]] = None):
+        super().__init__(possible_values, probs)
 
-    def sample(self):
-        return np.random.choice(self.possible_values)
+
+class Categorical(ProbabilityCapableParameter):
+    def __init__(self, possible_values: Union[List[Text], np.array], probs: Optional[Iterable[float]] = None):
+        super().__init__(possible_values, probs)
 
 
 if __name__ == '__main__':
