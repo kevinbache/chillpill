@@ -6,6 +6,53 @@ from typing import Union, List, Text, Dict, Optional, Iterable, Any
 import numpy as np
 
 
+class DictBouncer:
+    """This object can bounce itself down to and back up from a dict."""
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def __eq__(self, o: object) -> bool:
+        return type(self) == type(o) and self.__dict__ == o.__dict__
+
+    def __hash__(self) -> int:
+        return hash(self.__dict__)
+
+    @classmethod
+    def _to_dict_inner(cls, element: Any):
+        if hasattr(element, 'to_dict'):
+            return element.to_dict()
+        elif hasattr(element, 'toJSON'):
+            return element.toJSON()
+        elif isinstance(element, list):
+            return [cls._to_dict_inner(e) for e in element]
+        elif isinstance(element, tuple):
+            return (cls._to_dict_inner(e) for e in element)
+        elif isinstance(element, dict):
+            return {k: cls._to_dict_inner(v) for k, v in element.items()}
+        else:
+            return element
+
+    def to_dict(self):
+        return self._to_dict_inner(self.__dict__)
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        return cls(**d) if d else None
+
+    def __repr__(self):
+        kv_str = ', '.join([f'{k}={v}' for k, v in self.to_dict().items()])
+        return f'{self.__class__.__name__}({kv_str})'
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class Samplable(abc.ABC):
+    @abc.abstractmethod
+    def sample(self):
+        pass
+
+
 class HasClassDefaults(abc.ABC):
     """Knows how to find non-method, class- and object-based data members on itself.
 
@@ -53,7 +100,7 @@ class HasClassDefaults(abc.ABC):
         )
 
 
-class ParameterSet(HasClassDefaults):
+class ParameterSet(HasClassDefaults, Samplable, DictBouncer):
     """Represents a set of Parameters.
 
     Subclass this and add default values as class members.
@@ -188,6 +235,7 @@ class ParameterSet(HasClassDefaults):
     ```
     """
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._class_member_order = []
 
         # copy class attributes into the instance
@@ -200,27 +248,21 @@ class ParameterSet(HasClassDefaults):
 
         self._index = None
 
-    @classmethod
-    def from_dict(cls, d: Dict):
-        hp = cls()
-        for k, v in d.items():
-            if np.issubdtype(type(v), np.integer):
-                v = int(v)
-            elif np.issubdtype(type(v), np.floating):
-                v = float(v)
-            hp.__setattr__(k, v)
-        return hp
-
-    def to_dict(self):
-        out = {}
-        for attr_name in self._get_member_names():
-            out[attr_name] = self.__getattribute__(attr_name)
-        return out
+    # @classmethod
+    # def from_dict(cls, d: Dict):
+    #     hp = cls()
+    #     for k, v in d.items():
+    #         if np.issubdtype(type(v), np.integer):
+    #             v = int(v)
+    #         elif np.issubdtype(type(v), np.floating):
+    #             v = float(v)
+    #         hp.__setattr__(k, v)
+    #     return hp
 
     def sample(self):
         out = copy.deepcopy(self)
         for k, v in out.__dict__.items():
-            if isinstance(v, SamplableParameter):
+            if isinstance(v, Samplable):
                 out.__setattr__(k, v.sample())
         return out
 
@@ -232,14 +274,9 @@ class ParameterSet(HasClassDefaults):
         self._index = index
 
 
-class SamplableParameter(abc.ABC):
-    @abc.abstractmethod
-    def sample(self):
-        pass
-
-
-class Double(SamplableParameter):
+class Double(DictBouncer, Samplable):
     def __init__(self, min_value: float, max_value: float):
+        super().__init__()
         self.min_value = min_value
         self.max_value = max_value
 
@@ -247,8 +284,9 @@ class Double(SamplableParameter):
         return np.random.uniform(self.min_value, self.max_value)
 
 
-class Integer(SamplableParameter):
+class Integer(DictBouncer, Samplable):
     def __init__(self, min_value: int, max_value: int):
+        super().__init__()
         self.min_value = min_value
         self.max_value = max_value
 
@@ -256,8 +294,18 @@ class Integer(SamplableParameter):
         return np.random.randint(self.min_value, self.max_value)
 
 
-class ProbabilityCapableParameter(SamplableParameter):
+class Boolean(DictBouncer, Samplable):
+    def __init__(self, p_true: float):
+        super().__init__()
+        self.p_true = p_true
+
+    def sample(self):
+        return np.random.random() < self.p_true
+
+
+class ProbabilityCapableParameter(DictBouncer, Samplable):
     def __init__(self, possible_values: Union[List[Any], np.array], probs: Optional[Iterable[Any]] = None):
+        super().__init__()
         self.possible_values = possible_values
         self.probs = probs
 

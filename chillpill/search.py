@@ -107,7 +107,7 @@ class HyperparamSearchSpec(params.HasClassDefaults):
 
     ############################################################
     # high level methods which work with hp.SamplableParameters
-    def _add_parameter(self, name: Text, parameter: params.SamplableParameter):
+    def _add_parameter(self, name: Text, parameter: params.Samplable):
         self.params.append(SpecParameterFactory.spec_param_from_param(name, parameter))
 
     def add_parameters(self, parameters: params.ParameterSet):
@@ -115,7 +115,7 @@ class HyperparamSearchSpec(params.HasClassDefaults):
         self._parameters_type = type(parameters)
 
         for name, attribute in parameters.__dict__.items():
-            if isinstance(attribute, params.SamplableParameter):
+            if isinstance(attribute, params.Samplable):
                 self._add_parameter(name, attribute)
 
     @classmethod
@@ -298,7 +298,7 @@ class SpecParameter(params.HasClassDefaults):
 
     @classmethod
     @abc.abstractmethod
-    def from_hyperparameter(cls, name: Text, parameter: params.SamplableParameter):
+    def from_hyperparameter(cls, name: Text, parameter: params.Samplable):
         raise NotImplementedError("Don't instantiate this class directly.  Use it's children.")
 
 
@@ -418,7 +418,7 @@ class SpecParameterFactory:
     }
 
     @classmethod
-    def spec_param_from_param(cls, name: Text, parameter: params.SamplableParameter):
+    def spec_param_from_param(cls, name: Text, parameter: params.Samplable):
         return cls.hp_to_spec_types[parameter.__class__].from_hyperparameter(name, parameter)
 
 
