@@ -30,4 +30,3 @@ class GoogleCloudAiCallback(keras.callbacks.Callback):
                 metric_value=val,
                 global_step=num_batches,
             )
-
