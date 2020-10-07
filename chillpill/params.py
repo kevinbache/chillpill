@@ -1,4 +1,5 @@
 import abc
+import collections
 import copy
 import types
 from typing import Union, List, Text, Dict, Optional, Iterable, Any
@@ -58,12 +59,11 @@ class HasClassDefaults(abc.ABC):
             ', '.join('{}: {}'.format(k, self.__dict__[k]) for k in self._get_member_names())
         )
 
-
-class HasToDictMixin:
     def to_dict(self):
-        d = {}
+        d = collections.OrderedDict()
 
-        for k, v in self.__dict__.items():
+        for k in sorted(self._get_member_names()):
+            v = self.__dict__[k]
             if v is None:
                 d[k] = None
             elif hasattr(v, 'to_dict'):
@@ -79,7 +79,7 @@ class HasToDictMixin:
         return d
 
 
-class ParameterSet(HasClassDefaults, HasToDictMixin, Samplable):
+class ParameterSet(HasClassDefaults, Samplable):
     """Represents a set of Parameters.
 
     Subclass this and add default values as class members.
@@ -242,7 +242,7 @@ class ParameterSet(HasClassDefaults, HasToDictMixin, Samplable):
         self._index = index
 
 
-class Double(Samplable, HasToDictMixin):
+class Double(Samplable):
     def __init__(self, min_value: float, max_value: float):
         super().__init__()
         self.min_value = min_value
@@ -251,8 +251,11 @@ class Double(Samplable, HasToDictMixin):
     def sample(self):
         return np.random.uniform(self.min_value, self.max_value)
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.min_value}, {self.max_value})'
 
-class Integer(Samplable, HasToDictMixin):
+
+class Integer(Samplable):
     def __init__(self, min_value: int, max_value: int):
         self.min_value = min_value
         self.max_value = max_value
@@ -260,8 +263,11 @@ class Integer(Samplable, HasToDictMixin):
     def sample(self):
         return np.random.randint(self.min_value, self.max_value)
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.min_value}, {self.max_value})'
 
-class Boolean(Samplable, HasToDictMixin):
+
+class Boolean(Samplable):
     def __init__(self, p_true: float):
         super().__init__()
         self.p_true = p_true
@@ -269,14 +275,17 @@ class Boolean(Samplable, HasToDictMixin):
     def sample(self):
         return np.random.random() < self.p_true
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.p_true})'
 
-class ProbabilityCapableParameter(Samplable, HasToDictMixin):
+
+class ProbabilityCapableParameter(Samplable):
     def __init__(self, possible_values: Union[List[Any], np.array], probs: Optional[Iterable[Any]] = None):
         super().__init__()
         self.possible_values = possible_values
 
         probs = np.array(list(probs))
-        self.probs = probs / probs.sum()
+        self.probs = list(probs / probs.sum())
 
     @classmethod
     def from_prob_dict(cls, d: Dict[Any, float]):
@@ -284,6 +293,9 @@ class ProbabilityCapableParameter(Samplable, HasToDictMixin):
 
     def sample(self):
         return np.random.choice(self.possible_values, p=self.probs)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.possible_values}, {self.probs})'
 
 
 class Discrete(ProbabilityCapableParameter):
