@@ -83,13 +83,11 @@ class HasClassDefaults(abc.ABC):
         return d
 
     def to_ray_tune_search_dict(self):
-        from ray import tune
-
         d = self.to_dict()
         for k, v in d.items():
             if isinstance(v, Samplable):
-                d[k] = tune.choice
-
+                d[k] = v.to_ray_tune_samplable()
+        return d
 
     @classmethod
     def from_dict(cls, d: Dict):
@@ -239,7 +237,7 @@ class ParameterSet(HasClassDefaults, Samplable):
     ```
     """
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__()
         self._class_member_order = []
 
         # copy class attributes into the instance
@@ -259,9 +257,13 @@ class ParameterSet(HasClassDefaults, Samplable):
                 out.__setattr__(k, v.sample())
         return out
 
-    def to_ray_tune_samplable(self):
-        from ray import tune
-        tune.sample_from(self.sample)
+    def get_samplable_param_names(self) -> List[str]:
+        out = []
+        for name in self._get_member_names():
+            v = getattr(self, name)
+            if isinstance(v, Samplable):
+                out.append(name)
+        return out
 
     def get_index(self):
         """Used for differentiating parameter sets within a parameter search"""
