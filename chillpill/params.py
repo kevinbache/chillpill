@@ -12,6 +12,10 @@ class Samplable(abc.ABC):
     def sample(self):
         pass
 
+    def to_ray_tune_samplable(self):
+        from ray import tune
+        return tune.sample_from(self.sample)
+
 
 class HasClassDefaults(abc.ABC):
     """Knows how to find non-method, class- and object-based data members on itself.
@@ -77,6 +81,15 @@ class HasClassDefaults(abc.ABC):
             else:
                 d[k] = v
         return d
+
+    def to_ray_tune_search_dict(self):
+        from ray import tune
+
+        d = self.to_dict()
+        for k, v in d.items():
+            if isinstance(v, Samplable):
+                d[k] = tune.choice
+
 
     @classmethod
     def from_dict(cls, d: Dict):
@@ -246,6 +259,10 @@ class ParameterSet(HasClassDefaults, Samplable):
                 out.__setattr__(k, v.sample())
         return out
 
+    def to_ray_tune_samplable(self):
+        from ray import tune
+        tune.sample_from(self.sample)
+
     def get_index(self):
         """Used for differentiating parameter sets within a parameter search"""
         return self._index
@@ -254,7 +271,7 @@ class ParameterSet(HasClassDefaults, Samplable):
         self._index = index
 
 
-class Double(Samplable):
+class Float(Samplable):
     def __init__(self, min_value: float, max_value: float):
         super().__init__()
         self.min_value = min_value
@@ -263,17 +280,26 @@ class Double(Samplable):
     def sample(self):
         return np.random.uniform(self.min_value, self.max_value)
 
+    def to_ray_tune_samplable(self):
+        from ray import tune
+        return tune.uniform(self.min_value, self.max_value)
+
     def __repr__(self):
         return f'{self.__class__.__name__}({self.min_value}, {self.max_value})'
 
 
 class Integer(Samplable):
     def __init__(self, min_value: int, max_value: int):
+        """min is inclusive, max is exclusive"""
         self.min_value = min_value
         self.max_value = max_value
 
     def sample(self):
         return np.random.randint(self.min_value, self.max_value)
+
+    def to_ray_tune_samplable(self):
+        from ray import tune
+        return tune.randint(self.min_value, self.max_value)
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.min_value}, {self.max_value})'
@@ -296,8 +322,11 @@ class ProbabilityCapableParameter(Samplable):
         super().__init__()
         self.possible_values = possible_values
 
-        probs = np.array(list(probs))
-        self.probs = list(probs / probs.sum())
+        if probs:
+            probs = np.array(list(probs))
+            self.probs = list(probs / probs.sum())
+        else:
+            self.probs = None
 
     @classmethod
     def from_prob_dict(cls, d: Dict[Any, float]):
@@ -326,7 +355,7 @@ if __name__ == '__main__':
     class ModelHyperParams(ParameterSet):
         num_hidden_layers = Integer(1, 4)
         num_neurons_per_layer = Discrete(np.logspace(2, 7, num=6, base=2, dtype=np.int))
-        dropout_rate = Double(0.0, 0.99)
+        dropout_rate = Float(0.0, 0.99)
         activation = Categorical(['relu', 'sigmoid'])
         output_dir = '/tmp/output'
         filter_size = 3

@@ -320,7 +320,7 @@ class DoubleSpecParameter(SpecParameter):
         return np.random.uniform(self.min_value, self.max_value)
 
     @classmethod
-    def from_hyperparameter(cls, name: Text, parameter: params.Double):
+    def from_hyperparameter(cls, name: Text, parameter: params.Float):
         return cls(
             parameter_name=name,
             min_value=parameter.min_value,
@@ -412,7 +412,7 @@ class SpecParameterFactory:
     """Translates hp.SamplableParameters into SpecParameters"""
     hp_to_spec_types = {
         params.Integer: IntegerSpecParameter,
-        params.Double: DoubleSpecParameter,
+        params.Float: DoubleSpecParameter,
         params.Discrete: DiscreteSpecParameter,
         params.Categorical: CategoricalSpecParameter,
     }
@@ -433,7 +433,7 @@ if __name__ == '__main__':
     class ModelHyperParams(params.ParameterSet):
         num_hidden_layers = params.Integer(1, 4)
         num_neurons_per_layer = params.Discrete(np.logspace(2, 7, num=6, base=2, dtype=np.int))
-        dropout_rate = params.Double(0.0, 0.99)
+        dropout_rate = params.Float(0.0, 0.99)
         activation = params.Categorical(['relu', 'sigmoid'])
         output_dir = '/tmp/output'
         filter_size = 3
