@@ -78,6 +78,18 @@ class HasClassDefaults(abc.ABC):
                 d[k] = v
         return d
 
+    @classmethod
+    def from_dict(cls, d: Dict):
+        hp = cls()
+        for k, v in d.items():
+            # TODO: don't cast array to int
+            if np.issubdtype(type(v), np.integer):
+                v = int(v)
+            elif np.issubdtype(type(v), np.floating):
+                v = float(v)
+            hp.__setattr__(k, v)
+        return hp
+
 
 class ParameterSet(HasClassDefaults, Samplable):
     """Represents a set of Parameters.
