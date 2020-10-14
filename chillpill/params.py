@@ -1,6 +1,7 @@
 import abc
 import collections
 import copy
+import hashlib
 import types
 from typing import Union, List, Text, Dict, Optional, Iterable, Any
 
@@ -250,12 +251,21 @@ class ParameterSet(HasClassDefaults, Samplable):
 
         self._index = None
 
+        self._samplable_param_names = self.get_samplable_param_names()
+
+        self._short_hash = None
+
     def sample(self):
+        self._samplable_param_names = self.get_samplable_param_names()
         out = copy.deepcopy(self)
         for k, v in out.__dict__.items():
             if isinstance(v, Samplable):
                 out.__setattr__(k, v.sample())
         return out
+
+    def get_name_str(self):
+        """Get a good default name for a run governed by these parameters."""
+        return '-'.join(f'param={getattr(self, param)}' for param in self._samplable_param_names)
 
     def get_samplable_param_names(self) -> List[str]:
         out = []
@@ -271,6 +281,18 @@ class ParameterSet(HasClassDefaults, Samplable):
 
     def set_index(self, index):
         self._index = index
+
+    def get_short_hash(self, num_chars=4):
+        # cache _short_hash because we don't want it to change as we 1) add more parameters or 2) sample from the set
+        if self._short_hash is not None:
+            return self._short_hash
+        return self.reset_short_hash(num_chars)
+
+    def reset_short_hash(self, num_chars=4):
+        d = self.to_dict()
+        h = hashlib.sha1(str(d).encode('utf-8'))
+        self._short_hash = h.hexdigest()[-num_chars:]
+        return self._short_hash
 
 
 class Float(Samplable):
