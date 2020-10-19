@@ -83,13 +83,6 @@ class HasClassDefaults(abc.ABC):
                 d[k] = v
         return d
 
-    def to_ray_tune_search_dict(self):
-        d = self.to_dict()
-        for k, v in d.items():
-            if isinstance(v, Samplable):
-                d[k] = v.to_ray_tune_samplable()
-        return d
-
     @classmethod
     def from_dict(cls, d: Dict):
         hp = cls()
@@ -251,6 +244,8 @@ class ParameterSet(HasClassDefaults, Samplable):
 
         self._index = None
 
+        # the names of the parameters which at least started life as Samplable.
+        # i.e.: these are the parameters which will vary across a hyperparameter sweep
         self._samplable_param_names = self.get_samplable_param_names()
 
         self._short_hash = None
@@ -262,6 +257,18 @@ class ParameterSet(HasClassDefaults, Samplable):
             if isinstance(v, Samplable):
                 out.__setattr__(k, v.sample())
         return out
+
+    def to_ray_tune_search_dict(self):
+        self._samplable_param_names = self.get_samplable_param_names()
+        d = self.to_dict()
+        for k, v in d.items():
+            if isinstance(v, Samplable):
+                d[k] = v.to_ray_tune_samplable()
+        return d
+
+    def to_ray_tune_samplable(self):
+        raise NotImplementedError(f"Call {self.to_ray_tune_search_dict.__name__} instead.")
+
 
     def get_name_str(self):
         """Get a good default name for a run governed by these parameters."""
