@@ -250,6 +250,14 @@ class ParameterSet(HasClassDefaults, Samplable):
 
         self._short_hash = None
 
+    @classmethod
+    def get_default_params(cls) -> "ParameterSet":
+        return cls()
+
+    @classmethod
+    def get_default_search_params(cls) -> "ParameterSet":
+        return cls.get_default_params()
+
     def sample(self):
         self._samplable_param_names = self.get_samplable_param_names()
         out = copy.deepcopy(self)
@@ -389,6 +397,7 @@ if __name__ == '__main__':
         activation = Categorical(['relu', 'sigmoid'])
         output_dir = '/tmp/output'
         filter_size = 3
+
 
     sample = ModelHyperParams().sample()
     print(sample)
