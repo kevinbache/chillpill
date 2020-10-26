@@ -267,8 +267,7 @@ class ParameterSet(HasClassDefaults, Samplable):
         return d
 
     def to_ray_tune_samplable(self):
-        raise NotImplementedError(f"Call {self.to_ray_tune_search_dict.__name__} instead.")
-
+        raise ValueError(f"Call {self.to_ray_tune_search_dict.__name__} instead.")
 
     def get_name_str(self):
         """Get a good default name for a run governed by these parameters."""
