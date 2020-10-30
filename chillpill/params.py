@@ -6,6 +6,7 @@ import types
 from typing import Union, List, Text, Dict, Optional, Iterable, Any
 
 import numpy as np
+import typing
 
 
 class Samplable(abc.ABC):
@@ -31,9 +32,12 @@ class HasClassDefaults(abc.ABC):
         '_abc_registry',
         'names_to_ignore',
         '_class_member_order',
-        '_index'
+        '_index',
+        '_samplable_param_names',
+        '_short_hash',
     ]
 
+    # noinspection PyTypeChecker
     def _is_method(self, attribute_name):
         return isinstance(self.__getattribute__(attribute_name), (
             types.FunctionType,
@@ -65,7 +69,7 @@ class HasClassDefaults(abc.ABC):
         )
 
     def to_dict(self):
-        d = collections.OrderedDict()
+        d = {}
 
         for k in sorted(self._get_member_names()):
             v = self.__dict__[k]
@@ -92,6 +96,8 @@ class HasClassDefaults(abc.ABC):
                 v = int(v)
             elif np.issubdtype(type(v), np.floating):
                 v = float(v)
+            elif isinstance(v, typing.MutableMapping):
+                v = hp.__getattribute__(k).from_dict(v)
             hp.__setattr__(k, v)
         return hp
 
@@ -251,12 +257,12 @@ class ParameterSet(HasClassDefaults, Samplable):
         self._short_hash = None
 
     @classmethod
-    def get_default_params(cls) -> "ParameterSet":
+    def default(cls, **kwargs) -> "ParameterSet":
         return cls()
 
     @classmethod
-    def get_default_search_params(cls) -> "ParameterSet":
-        return cls.get_default_params()
+    def default_search(cls, **kwargs) -> "ParameterSet":
+        return cls.default(**kwargs)
 
     def sample(self):
         self._samplable_param_names = self.get_samplable_param_names()
