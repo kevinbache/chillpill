@@ -273,11 +273,19 @@ class ParameterSet(HasClassDefaults, Samplable):
         return out
 
     def to_ray_tune_search_dict(self):
+
+        def _to_ray_tune_search_dict_inner(d: Dict):
+            for k, v in d.items():
+                if isinstance(v, Samplable):
+                    d[k] = v.to_ray_tune_samplable()
+                elif isinstance(v, typing.MutableMapping):
+                    d[k] = _to_ray_tune_search_dict_inner(v)
+            return d
+
         self._samplable_param_names = self.get_samplable_param_names()
         d = self.to_dict()
-        for k, v in d.items():
-            if isinstance(v, Samplable):
-                d[k] = v.to_ray_tune_samplable()
+        d = _to_ray_tune_search_dict_inner(d)
+
         return d
 
     def to_ray_tune_samplable(self):
