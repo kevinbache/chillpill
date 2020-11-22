@@ -1,9 +1,8 @@
 import abc
-import collections
 import copy
 import hashlib
 import types
-from typing import Union, List, Text, Dict, Optional, Iterable, Any
+from typing import *
 
 import numpy as np
 import typing
@@ -14,13 +13,13 @@ class Samplable(abc.ABC):
     def sample(self):
         pass
 
-    def to_ray_tune_samplable(self):
+    def to_ray_tune_search_dict(self):
         from ray import tune
         return tune.sample_from(self.sample)
 
 
 class HasClassDefaults(abc.ABC):
-    """Knows how to find non-method, class- and object-based data members on itself.
+    """Knows how to find class- and object-based data members on itself which aren't methods.
 
     HasClassDefault._get_member_names is like object.__dict__.keys() except it includes class members.
     """
@@ -97,9 +96,32 @@ class HasClassDefaults(abc.ABC):
             elif np.issubdtype(type(v), np.floating):
                 v = float(v)
             elif isinstance(v, typing.MutableMapping):
-                v = hp.__getattribute__(k).from_dict(v)
+                # if v is another params object which has a from_dict, then use it.  otherwise leave as is
+                if hasattr(hp, k):
+                    hp_k = hp.__getattribute__(k)
+                    if hasattr(hp_k, 'from_dict'):
+                        v = hp_k.from_dict(v)
             hp.__setattr__(k, v)
         return hp
+
+    def __contains__(self, item):
+        return item in self.keys()
+
+    def keys(self):
+        return self._get_member_names()
+
+    def __getitem__(self, item):
+        if item not in self.keys():
+            raise ValueError(f'Keys for this class are: {self.keys()} but you tried to get {item}')
+        return getattr(self, item)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __iter__(self):
+        # return iter(self.items())
+        d = {k: getattr(self, k) for k in self.keys()}
+        return iter(d.items())
 
 
 class ParameterSet(HasClassDefaults, Samplable):
@@ -256,13 +278,10 @@ class ParameterSet(HasClassDefaults, Samplable):
 
         self._short_hash = None
 
-    @classmethod
-    def default(cls, **kwargs) -> "ParameterSet":
-        return cls()
+        self.__post_init__()
 
-    @classmethod
-    def default_search(cls, **kwargs) -> "ParameterSet":
-        return cls.default(**kwargs)
+    def __post_init__(self):
+        pass
 
     def sample(self):
         self._samplable_param_names = self.get_samplable_param_names()
@@ -273,13 +292,22 @@ class ParameterSet(HasClassDefaults, Samplable):
         return out
 
     def to_ray_tune_search_dict(self):
+        def _to_ray_tune_search_dict_inner(d: Any):
+            if not hasattr(d, 'items'):
+                return d
 
-        def _to_ray_tune_search_dict_inner(d: Dict):
             for k, v in d.items():
-                if isinstance(v, Samplable):
-                    d[k] = v.to_ray_tune_samplable()
-                elif isinstance(v, typing.MutableMapping):
+                if hasattr(v, 'to_ray_tun_search_dict'):
+                    d[k] = v.to_ray_tune_search_dict()
+                elif isinstance(v, Mapping):
                     d[k] = _to_ray_tune_search_dict_inner(v)
+                elif isinstance(v, list):
+                    d[k] = [_to_ray_tune_search_dict_inner(e) for e in v]
+                elif isinstance(v, tuple):
+                    d[k] = tuple(_to_ray_tune_search_dict_inner(e) for e in v)
+                else:
+                    # other members remain unchanged
+                    pass
             return d
 
         self._samplable_param_names = self.get_samplable_param_names()
@@ -288,8 +316,8 @@ class ParameterSet(HasClassDefaults, Samplable):
 
         return d
 
-    def to_ray_tune_samplable(self):
-        raise ValueError(f"Call {self.to_ray_tune_search_dict.__name__} instead.")
+    # def to_ray_tune_samplable(self):
+    #     return self.to_ray_tune_search_dict()
 
     def get_name_str(self):
         """Get a good default name for a run governed by these parameters."""
@@ -332,7 +360,7 @@ class Float(Samplable):
     def sample(self):
         return np.random.uniform(self.min_value, self.max_value)
 
-    def to_ray_tune_samplable(self):
+    def to_ray_tune_search_dict(self):
         from ray import tune
         return tune.uniform(self.min_value, self.max_value)
 
@@ -349,7 +377,7 @@ class Integer(Samplable):
     def sample(self):
         return np.random.randint(self.min_value, self.max_value)
 
-    def to_ray_tune_samplable(self):
+    def to_ray_tune_search_dict(self):
         from ray import tune
         return tune.randint(self.min_value, self.max_value)
 
