@@ -7,8 +7,6 @@ from typing import *
 import numpy as np
 import typing
 
-from tablestakes.ml2.factored import head_mod
-
 
 class Samplable(abc.ABC):
     @abc.abstractmethod
@@ -91,20 +89,29 @@ class HasClassDefaults(abc.ABC):
     @classmethod
     def from_dict(cls, d: Dict):
         hp = cls()
-        if isinstance(hp, head_mod.WeightedHeadParams):
-            print(hp)
         for k, v in d.items():
             # TODO: don't cast array to int
             if np.issubdtype(type(v), np.integer):
                 v = int(v)
             elif np.issubdtype(type(v), np.floating):
                 v = float(v)
-            elif isinstance(v, typing.MutableMapping):
-                # if v is another params object which has a from_dict, then use it.  otherwise leave as is
+            elif isinstance(v, MutableMapping):
+                # two cases:
+                #   1) v is a ParameterSet object which needs to have from_dict called on it
+                #   2) v is a dict which needs its values processed
                 if hasattr(hp, k):
                     hp_k = hp.__getattribute__(k)
                     if hasattr(hp_k, 'from_dict'):
                         v = hp_k.from_dict(v)
+                    else:
+                        for kk, vv in v.items():
+                            if kk in hp_k:
+
+                                hp_kk = hp_k[kk]
+                                if hasattr(hp_kk, 'from_dict'):
+                                    v[kk] = hp_kk.from_dict(vv)
+                else:
+                    pass
             hp.__setattr__(k, v)
         return hp
 
