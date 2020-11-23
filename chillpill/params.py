@@ -7,6 +7,8 @@ from typing import *
 import numpy as np
 import typing
 
+from tablestakes.ml2.factored import head_mod
+
 
 class Samplable(abc.ABC):
     @abc.abstractmethod
@@ -89,6 +91,8 @@ class HasClassDefaults(abc.ABC):
     @classmethod
     def from_dict(cls, d: Dict):
         hp = cls()
+        if isinstance(hp, head_mod.WeightedHeadParams):
+            print(hp)
         for k, v in d.items():
             # TODO: don't cast array to int
             if np.issubdtype(type(v), np.integer):
@@ -297,7 +301,7 @@ class ParameterSet(HasClassDefaults, Samplable):
                 return d
 
             for k, v in d.items():
-                if hasattr(v, 'to_ray_tun_search_dict'):
+                if hasattr(v, 'to_ray_tune_search_dict'):
                     d[k] = v.to_ray_tune_search_dict()
                 elif isinstance(v, Mapping):
                     d[k] = _to_ray_tune_search_dict_inner(v)
