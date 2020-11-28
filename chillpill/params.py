@@ -7,6 +7,8 @@ from typing import *
 import numpy as np
 import typing
 
+from tablestakes import utils
+
 
 class Samplable(abc.ABC):
     @abc.abstractmethod
@@ -67,11 +69,44 @@ class HasClassDefaults(abc.ABC):
             ', '.join('{}: {}'.format(k, self.__dict__[k]) for k in self._get_member_names())
         )
 
+    def _str_inner(self, obj):
+        typestr = obj.__class__.__name__
+        if isinstance(obj, ParameterSet):
+            return str(obj).replace('\n', '\n  ')
+        elif hasattr(obj, 'shape'):
+            shape = ', '.join([str(e) for e in obj.shape]) or '[]'
+            return f'{typestr}(shape={shape})'
+        elif isinstance(obj, (list, tuple)):
+            l = len(obj)
+            # if isinstance(obj, list):
+            #     empty_str = '[]'
+            # else:
+            #     empty_str = '()'
+            # first_str = self._str_inner(obj[0]) if l else empty_str
+            return f'{typestr}(len={l}, {str(obj)})'
+        elif isinstance(obj, dict):
+            # if not obj:
+            #     return f'{typestr}(empty)'
+            l = len(obj)
+            # k0 = list(obj.keys())[0]
+            # v0 = obj[k0]
+            # first_str = f'{self._str_inner(k0)}: {self._str_inner(v0)}' if l else '{}'
+            # return f'{typestr}([len={l}, first={first_str})'
+            return f'{typestr}(len={l}, {str(obj)})'
+        else:
+            return str(obj)
+
+    def __str__(self):
+        d = {k: self._str_inner(self.__getattribute__(k)) for k in self._get_member_names()}
+        strs = [f'{k}={v}' for k, v in d.items()]
+        arg_str = ',\n  '.join(strs)
+        return f'{self.__class__.__name__}(\n  {arg_str}\n)'
+
     def to_dict(self):
         d = {}
 
         for k in sorted(self._get_member_names()):
-            v = self.__dict__[k]
+            v = self.__getattribute__(k)
             if v is None:
                 d[k] = None
             elif hasattr(v, 'to_dict'):
@@ -87,33 +122,39 @@ class HasClassDefaults(abc.ABC):
         return d
 
     @classmethod
-    def from_dict(cls, d: Dict):
-        hp = cls()
-        for k, v in d.items():
-            # TODO: don't cast array to int
-            if np.issubdtype(type(v), np.integer):
-                v = int(v)
-            elif np.issubdtype(type(v), np.floating):
-                v = float(v)
-            elif isinstance(v, MutableMapping):
-                # two cases:
-                #   1) v is a ParameterSet object which needs to have from_dict called on it
-                #   2) v is a dict which needs its values processed
-                if hasattr(hp, k):
-                    hp_k = hp.__getattribute__(k)
-                    if hasattr(hp_k, 'from_dict'):
-                        v = hp_k.from_dict(v)
-                    else:
-                        for kk, vv in v.items():
-                            if kk in hp_k:
+    def _from_dict_inner(cls, d: Any, obj: Any):
+        """
+        Args:
+            d: the dict or subsection of dict to be read into the obj
+            obj: the hp object (or subsection of hp object) to read the dict into.
 
-                                hp_kk = hp_k[kk]
-                                if hasattr(hp_kk, 'from_dict'):
-                                    v[kk] = hp_kk.from_dict(vv)
-                else:
-                    pass
-            hp.__setattr__(k, v)
-        return hp
+        Returns: Any
+            obj with values from d stuffed into it
+        """
+        if np.issubdtype(type(d), np.integer):
+            obj = int(d)
+        elif np.issubdtype(type(d), np.floating):
+            obj = float(d)
+        elif isinstance(d, MutableMapping):
+            for k, v in d.items():
+                objv = v
+                if hasattr(obj, k):
+                    objv = getattr(obj, k)
+                    if hasattr(objv, 'from_dict'):
+                        objv = objv.from_dict(v)
+                    else:
+                        objv = cls._from_dict_inner(v, objv)
+
+                setattr(obj, k, objv)
+        else:
+            obj = d
+        return obj
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        # todo: check if copy fixes class membership problem
+        hp = copy.deepcopy(cls())
+        return cls._from_dict_inner(d, hp)
 
     def __contains__(self, item):
         return item in self.keys()
