@@ -7,8 +7,6 @@ from typing import *
 import numpy as np
 import typing
 
-from tablestakes import utils
-
 
 class Samplable(abc.ABC):
     @abc.abstractmethod
@@ -102,23 +100,45 @@ class HasClassDefaults(abc.ABC):
         arg_str = ',\n  '.join(strs)
         return f'{self.__class__.__name__}(\n  {arg_str}\n)'
 
+    @classmethod
+    def _to_dict_inner(cls, v: Any):
+        if v is None:
+            return None
+        elif hasattr(v, 'to_dict'):
+            return v.to_dict()
+        elif isinstance(v, (Mapping, MutableMapping)):
+            return {k: cls._to_dict_inner(vv) for k, vv in v.items()}
+        elif isinstance(v, list):
+            return [cls._to_dict_inner(vv) for vv in v]
+        elif isinstance(v, tuple):
+            return tuple(cls._to_dict_inner(vv) for vv in v)
+        elif isinstance(v, np.integer):
+            return int(v)
+        elif isinstance(v, np.floating):
+            return float(v)
+        elif isinstance(v, np.ndarray):
+            return v.tolist()
+        else:
+            return v
+
     def to_dict(self):
         d = {}
 
         for k in sorted(self._get_member_names()):
             v = self.__getattribute__(k)
-            if v is None:
-                d[k] = None
-            elif hasattr(v, 'to_dict'):
-                d[k] = v.to_dict()
-            elif isinstance(v, np.integer):
-                return int(v)
-            elif isinstance(v, np.floating):
-                return float(v)
-            elif isinstance(v, np.ndarray):
-                d[k] = v.tolist()
-            else:
-                d[k] = v
+            d[k] = self._to_dict_inner(v)
+            # if v is None:
+            #     d[k] = None
+            # elif hasattr(v, 'to_dict'):
+            #     d[k] = v.to_dict()
+            # elif isinstance(v, np.integer):
+            #     return int(v)
+            # elif isinstance(v, np.floating):
+            #     return float(v)
+            # elif isinstance(v, np.ndarray):
+            #     d[k] = v.tolist()
+            # else:
+            #     d[k] = v
         return d
 
     @classmethod
@@ -184,9 +204,9 @@ class ParameterSet(HasClassDefaults, Samplable):
     This class is intended to be used in four cases:
         1) In development for defining expected hyperparameter types and default values
         2) For use by local hyperparamter tuning objets like the `KerasHistoryRandomTuner`
-        2) For instantiating `HyperparamSearchSpec` objects which can be written to YAML
+        3) For instantiating `HyperparamSearchSpec` objects which can be written to YAML
            to be processed by the Google Cloud AI Platform
-        3) On a remote machine for instantiating parameters from passed arguments
+        4) On a remote machine for instantiating parameters from passed arguments
 
     Examples:
 
